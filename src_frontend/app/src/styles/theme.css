@@ -58,7 +58,7 @@ html, body, #root {
 }
 
 .sidebar-section h2 {
-  font-size: 11px;
+  font-size: 14px;
   letter-spacing: 1.5px;
   color: var(--text-secondary);
   margin-bottom: 12px;
@@ -76,7 +76,7 @@ html, body, #root {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .status-dot {
@@ -91,7 +91,7 @@ html, body, #root {
 }
 
 .system-status {
-  font-size: 11px;
+  font-size: 14px;
   color: var(--text-secondary);
 }
 
@@ -99,7 +99,7 @@ html, body, #root {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
+  font-size: 14px;
   margin-bottom: 8px;
 }
 
@@ -117,7 +117,7 @@ html, body, #root {
 }
 
 .agent-message {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text-secondary);
   line-height: 1.5;
 }
@@ -241,7 +241,7 @@ html, body, #root {
 }
 
 .metrics-label {
-  font-size: 10px;
+  font-size: 18px;
   color: var(--accent-cyan);
   letter-spacing: 0.5px;
   text-transform: uppercase;
@@ -256,27 +256,36 @@ html, body, #root {
 .metrics-bar-group {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 10px;
 }
 
 .metrics-bar-label {
-  font-size: 9px;
+  font-size: 18px;
   color: var(--text-secondary);
-  width: 28px;
+  width: 42px;
   flex-shrink: 0;
 }
 
-.sparkline-canvas {
-  image-rendering: pixelated;
-  height: 16px;
+.metric-bar-track {
   flex: 1;
+  height: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.metric-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.4s ease;
 }
 
 .metrics-bar-value {
-  font-size: 10px;
+  font-size: 18px;
   color: var(--text-primary);
-  width: 30px;
+  width: 42px;
   text-align: right;
+  flex-shrink: 0;
 }
 
 /* Agent Log */
@@ -292,7 +301,7 @@ html, body, #root {
 }
 
 .agent-log-empty {
-  font-size: 11px;
+  font-size: 14px;
   color: var(--text-secondary);
   font-style: italic;
 }
@@ -300,14 +309,14 @@ html, body, #root {
 .agent-log-entry {
   display: flex;
   gap: 8px;
-  font-size: 11px;
+  font-size: 14px;
   line-height: 1.4;
 }
 
 .agent-log-time {
   color: var(--text-secondary);
   flex-shrink: 0;
-  font-size: 10px;
+  font-size: 14px;
 }
 
 .agent-log-msg {
