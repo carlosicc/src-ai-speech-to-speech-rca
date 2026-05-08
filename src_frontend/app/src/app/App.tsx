@@ -1,11 +1,14 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-
-const queryClient = new QueryClient();
+import { CityCanvas } from "@/components/CityCanvas";
+import { Sidebar } from "@/components/Sidebar";
+import { DevPanel } from "@/components/DevPanel";
+import "@/styles/theme.css";
 
 export function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <div>RCA Agent — Alert to Action</div>
-    </QueryClientProvider>
+    <div className="app-layout">
+      <CityCanvas />
+      <Sidebar />
+      <DevPanel />
+    </div>
   );
 }
