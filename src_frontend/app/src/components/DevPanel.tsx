@@ -9,6 +9,8 @@ export function DevPanel() {
   const triggerIncident = useSceneStore((s) => s.triggerIncident);
   const advancePhase = useSceneStore((s) => s.advancePhase);
   const reset = useSceneStore((s) => s.reset);
+  const autoAdvance = useSceneStore((s) => s.autoAdvance);
+  const setAutoAdvance = useSceneStore((s) => s.setAutoAdvance);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -52,6 +54,9 @@ export function DevPanel() {
         <div className="dev-panel-buttons">
           <button onClick={advancePhase}>Advance Phase →</button>
           <button onClick={reset}>Reset</button>
+          <button onClick={() => setAutoAdvance(!autoAdvance)}>
+            Auto: {autoAdvance ? "ON" : "OFF"}
+          </button>
         </div>
       </div>
     </div>
