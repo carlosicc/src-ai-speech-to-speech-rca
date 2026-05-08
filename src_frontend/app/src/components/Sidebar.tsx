@@ -1,6 +1,8 @@
 import { useSceneStore } from "@/store/sceneStore";
 import { ROOMS } from "@/engine/config";
 import type { SceneState } from "@/types/scene";
+import { MetricsPanel } from "@/components/MetricsPanel";
+import { AgentLog } from "@/components/AgentLog";
 
 const AGENT_MESSAGES: Record<SceneState, string> = {
   HEALTHY: "Monitoring system activity. No issues detected.",
@@ -44,6 +46,8 @@ export function Sidebar() {
         </ul>
       </section>
 
+      <MetricsPanel />
+
       <section className="sidebar-section">
         <h2>AI AGENT STATUS</h2>
         <div className="agent-status">
@@ -52,6 +56,8 @@ export function Sidebar() {
         </div>
         <p className="agent-message">{AGENT_MESSAGES[state]}</p>
       </section>
+
+      <AgentLog />
     </div>
   );
 }

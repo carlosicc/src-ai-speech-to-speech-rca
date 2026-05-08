@@ -226,3 +226,90 @@ html, body, #root {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.3; }
 }
+
+/* Metrics Panel */
+.metrics-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.metrics-service {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.metrics-label {
+  font-size: 10px;
+  color: var(--accent-cyan);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.metrics-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.metrics-bar-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.metrics-bar-label {
+  font-size: 9px;
+  color: var(--text-secondary);
+  width: 28px;
+  flex-shrink: 0;
+}
+
+.sparkline-canvas {
+  image-rendering: pixelated;
+  height: 16px;
+  flex: 1;
+}
+
+.metrics-bar-value {
+  font-size: 10px;
+  color: var(--text-primary);
+  width: 30px;
+  text-align: right;
+}
+
+/* Agent Log */
+.agent-log {
+  max-height: 160px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+.agent-log-empty {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.agent-log-entry {
+  display: flex;
+  gap: 8px;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.agent-log-time {
+  color: var(--text-secondary);
+  flex-shrink: 0;
+  font-size: 10px;
+}
+
+.agent-log-msg {
+  word-break: break-word;
+}
