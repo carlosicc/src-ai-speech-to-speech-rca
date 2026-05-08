@@ -1,41 +1,40 @@
-# Frontend — Animated City Dashboard Design
+# Frontend — Animated Room-Based Dashboard Design
 
 **Date**: 2026-05-08  
-**Status**: Draft  
+**Status**: Implemented (Phases 1–3)  
 **Author**: Carlos / Claude
 
 ---
 
 ## Context
 
-This is the frontend for the "Alert to Action" RCA Agent Demo at AWS Summit Milan 2026. The UI needs to be visually striking for booth traffic — an animated pixel-art city that shows infrastructure health at a glance, then dramatically reacts when an incident occurs.
+This is the frontend for the "Alert to Action" RCA Agent Demo at AWS Summit Milan 2026. The UI is a **cross-section building** (like a dollhouse/apartment view) showing rooms that represent AWS infrastructure services. Animated pixel-art characters walk between furniture inside the rooms, and the sidebar shows system health.
 
-The frontend is a display-first UI (not heavily interactive). Booth visitors watch the demo loop; the only interaction is optionally triggering an incident or volunteering a phone number.
+The frontend is display-first (not heavily interactive). Booth visitors watch the demo loop; the only interaction is optionally triggering an incident.
 
 ---
 
-## Architecture Overview
+## Architecture Overview (Current Implementation)
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │  React App (Vite + TypeScript)                                       │
 │                                                                       │
 │  ┌─────────────────────────────────┐  ┌──────────────────────────┐  │
-│  │  CityCanvas (PixiJS)            │  │  Sidebar (Cloudscape)    │  │
+│  │  CityCanvas (Canvas 2D)         │  │  Sidebar (CSS)           │  │
 │  │  ~70% width                     │  │  ~30% width              │  │
 │  │                                 │  │                          │  │
-│  │  Layers:                        │  │  - Systems Overview      │  │
-│  │  1. Background (static)         │  │  - Live Metrics          │  │
-│  │  2. Buildings (sprites)         │  │  - AI Agent Status       │  │
-│  │  3. Connections (animated)      │  │  - Call Transcript       │  │
-│  │  4. Characters (animated)       │  │  - Demo Controls         │  │
-│  │  5. Effects (particles)         │  │                          │  │
+│  │  Cross-section building:        │  │  - Systems Overview      │  │
+│  │  3 floors, 7 rooms              │  │  - AI Agent Status       │  │
+│  │  Pixel-art furniture sprites    │  │  - (Future: Metrics)     │  │
+│  │  Animated NPC characters        │  │  - (Future: Transcript)  │  │
+│  │  Background (mountains, sky)    │  │  - (Future: Controls)    │  │
 │  └─────────────────────────────────┘  └──────────────────────────┘  │
 │                                                                       │
 │  ┌─────────────────────────────────────────────────────────────────┐ │
 │  │  State Manager (Zustand)                                         │ │
 │  │  sceneState: HEALTHY | INCIDENT | DIAGNOSING | CALLING | RESOLVED│ │
-│  │  Drives both PixiJS scene + Sidebar reactively                   │ │
+│  │  Drives both Canvas scene + Sidebar reactively                   │ │
 │  └─────────────────────────────────────────────────────────────────┘ │
 │                                                                       │
 │  ┌─────────────────────────────────────────────────────────────────┐ │
@@ -47,265 +46,179 @@ The frontend is a display-first UI (not heavily interactive). Booth visitors wat
 
 ---
 
-## Phase 1: Animated City (Steady State)
+## Phase 1: Room-Based Building (IMPLEMENTED)
 
-**Goal**: A PixiJS canvas showing a pixel-art city with buildings, animated connection lines, and walking characters. Everything looks healthy and alive.
+### Visual Design
 
-### Scene Composition
+A **3-floor cross-section building** rendered at 3x pixel scale on a Canvas 2D element. Each room represents an AWS service. Characters walk inside their assigned rooms. Background shows mountains, drifting clouds, trees, and ground.
 
-| Layer | Z-Index | Content | Animation |
-|-------|---------|---------|-----------|
-| Background | 0 | Dark city ground/sky (single AI-generated PNG) | None (static) |
-| Buildings | 1 | 6-8 labeled building sprites placed on grid | Subtle glow pulse (CSS filter or PixiJS filter) |
-| Connections | 2 | Glowing lines between buildings | Particles flowing along paths (data flow effect) |
-| Characters | 3 | 3-4 pixel engineer sprites | Walk along predefined paths, idle animations |
-| UI Overlays | 4 | Building labels, status indicators | Fade in/out |
+### Building Layout
 
-### Buildings (Services)
+| Floor | Room | Label | Width | Color |
+|-------|------|-------|-------|-------|
+| 2 (top) | monitoring | NOC / Monitoring | 220 | #1a2744 |
+| 2 (top) | network | Network / Gateway | 220 | #1a3a3a |
+| 1 (mid) | aurora-db | Aurora DB (Server Room) | 155 | #1a1a3a |
+| 1 (mid) | ecs-cluster | ECS Cluster | 155 | #2a1a3a |
+| 1 (mid) | lambda | Lambda / Functions | 130 | #1a3a2a |
+| 0 (ground) | api-gateway | API Gateway (Lobby) | 230 | #2a2a1a |
+| 0 (ground) | s3-storage | S3 Storage | 210 | #3a2a1a |
 
-| Building | Label | Position (approx) |
-|----------|-------|--------------------|
-| Data Center | "Aurora DB" | Center-left |
-| API Gateway | "API Gateway" | Center |
-| Network Tower | "Network" | Center-right |
-| Server Rack | "ECS Cluster" | Bottom-left |
-| Lambda | "Lambda Functions" | Bottom-center |
-| Storage | "S3 Storage" | Bottom-center-right |
-| Monitor | "Monitoring" | Bottom-right |
+Building width: 440px (at 3x scale = 1320px rendered). Room height: 72px. Floor gap: 5px.
 
-### Character Animations
+### Furniture & Sprite Assets
 
-Each character has a sprite sheet with frames for:
-- **Walk right** (4 frames)
-- **Walk left** (4 frames, or mirror)
-- **Idle** (2 frames, subtle bounce)
+All sprites are from the **PixelSpaces Free Pack** (pixel art, various sizes). Placed inside rooms at specific x/y offsets to create themed environments:
+- **Server rooms**: Rows of cabinets (server racks)
+- **Office rooms**: Tables with laptops, bookshelves
+- **Lobby**: Couch, coffee table, lamp
+- **Storage**: Cabinets, fridge, shelves
 
-Characters follow predefined bezier paths between buildings, pausing at each for 2-3 seconds (idle animation) before walking to the next.
+Assets location: `public/sprites/furniture/` (~25 furniture PNGs)
 
-### Connection Lines
+### Character Sprites
 
-Animated "data flow" lines between connected buildings:
-- Rendered as dashed lines with particles moving along them
-- Green/cyan color in healthy state
-- Subtle glow effect (PixiJS blur filter on a line graphic)
+Two sprite packs are used:
 
-### Art Assets Required
+1. **PixelSpaces NPCs** (`npc-male.png`, `npc-female.png`) — 64x48, 16x16 frames
+   - Row 0: front walk (4 frames)
+   - Row 1: side walk (3 frames)
+   - Row 2: back walk (2 frames)
 
-All generated as pixel-art PNGs (transparent background, consistent palette):
+2. **OldTown Citizens** (artun, hana, grym, julz, nyro, khali) — 64x496, 16x16 frames
+   - Rows 0-1: idle down (8 frames across 2 rows)
+   - Rows 2-3: walk down
+   - Rows 4-5: idle side
+   - Rows 6-7: walk side (used for room walking)
+   - Rows 8-9: idle up
+   - Rows 10-11: walk up
 
-```
-public/sprites/
-├── background.png          (1920x1080, dark city ground + sky)
-├── buildings/
-│   ├── data-center.png     (~128x128)
-│   ├── api-gateway.png     (~128x128)
-│   ├── network-tower.png   (~128x96)
-│   ├── server-rack.png     (~128x128)
-│   ├── lambda.png          (~96x96)
-│   ├── s3-storage.png      (~96x96)
-│   └── monitoring.png      (~96x96)
-├── characters/
-│   ├── engineer-1.png      (sprite sheet: 4 cols x 3 rows = walk-right, walk-left, idle)
-│   ├── engineer-2.png      (same format, different character)
-│   └── engineer-3.png      (same format, different character)
-└── effects/
-    ├── particle-green.png  (8x8 glow dot)
-    ├── particle-red.png    (8x8 glow dot)
-    └── spark.png           (16x16 spark sprite)
-```
+Assets location: `public/sprites/characters/` (8 NPC sprite sheets)
 
-### PixiJS Integration with React
+### Background
 
-```typescript
-// CityCanvas.tsx — thin React wrapper
-export function CityCanvas() {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const sceneRef = useRef<CityScene | null>(null);
-  const sceneState = useSceneStore((s) => s.state);
+Composed from PixelSpaces background assets:
+- Mountains (large + medium, drawn at low opacity)
+- Drifting clouds (animated with time-based offset)
+- Trees flanking the building
+- Dark blue sky gradient + green ground
 
-  useEffect(() => {
-    // Initialize PixiJS Application once
-    const scene = new CityScene(containerRef.current!);
-    sceneRef.current = scene;
-    return () => scene.destroy();
-  }, []);
+Assets location: `public/sprites/bg/`
 
-  useEffect(() => {
-    // React to state changes
-    sceneRef.current?.transitionTo(sceneState);
-  }, [sceneState]);
+### Character Behavior
 
-  return <div ref={containerRef} className="city-canvas" />;
-}
-```
-
-The `CityScene` class manages all PixiJS logic (sprite loading, animation loops, state transitions) — completely decoupled from React rendering.
-
----
-
-## Phase 2: Incident Mode
-
-**Goal**: When state changes to `INCIDENT`, the city reacts dramatically. Characters panic, buildings go dark, connections flash red. Initially triggered by a mock button; later by WebSocket.
+- 6 characters assigned to rooms (1 per room, wrapping)
+- Each walks left/right within their room boundaries
+- Pauses idle for 40-80 frames, then picks a new x target
+- Faces direction of movement (sprite flipped for left)
+- Animation: 4 frames cycling at 10-frame intervals (faster when panicking)
 
 ### State Machine
 
 ```
 HEALTHY → INCIDENT_DETECTED → DIAGNOSING → CALLING → RECOVERING → RESOLVED → HEALTHY
-   ↑                                                                              │
-   └──────────────────────────────────────────────────────────────────────────────┘
-                                    (auto-reset after 10s)
 ```
 
-### Visual Transitions
+### State → Visual Mapping
 
-| State | Buildings | Connections | Characters | Effects |
-|-------|-----------|-------------|------------|---------|
-| HEALTHY | All glowing green | Green particles flowing | Walking calmly | Ambient twinkle |
-| INCIDENT_DETECTED | Target goes dark/red | Target connections flash red | Nearby chars → panic anim | Screen flash, sparks on building |
-| DIAGNOSING | Target pulses orange | Scan effect on connections | One char runs to building | Magnifying glass icon appears |
-| CALLING | Target still red | Phone icon pulses | Chars look at phone | Ring animation |
-| RECOVERING | Target flickers green | Connections restore one-by-one | Chars watch hopefully | Loading spinner |
-| RESOLVED | All green restored | All flowing green | Chars celebrate (jump) | Confetti particles |
-
-### Character Panic Animation
-
-Additional sprite sheet frames needed:
-- **Panic** (4 frames: arms up, running in small circle)
-- **Celebrate** (4 frames: jumping with arms raised)
-
-### Triggering Mechanism
-
-```typescript
-// State store (Zustand)
-interface SceneStore {
-  state: SceneState;
-  affectedService: string | null;
-  triggerIncident: (service: string) => void;
-  advancePhase: () => void;
-  reset: () => void;
-}
-```
-
-Phase 2 includes a hidden dev panel (keyboard shortcut `Ctrl+D`) with buttons to:
-- Trigger incident on a specific service
-- Advance to next phase manually
-- Reset to healthy
-
-Later, `triggerIncident` is called from the WebSocket message handler — zero code change needed in the scene.
+| State | Characters | Future Effects |
+|-------|-----------|----------------|
+| HEALTHY | Walk normally | — |
+| INCIDENT_DETECTED | Panic (fast movement) | Room flash red, shake |
+| DIAGNOSING | Panic | Scan effect |
+| CALLING | Idle (stand still) | Phone icon |
+| RECOVERING | Idle | Loading effect |
+| RESOLVED | Walk normally | Confetti |
 
 ---
 
-## Phase 3: Right Sidebar
-
-**Goal**: A dark-themed dashboard panel showing system metrics, AI agent status, and eventually the live call transcript.
-
-### Layout
-
-```
-┌──────────────────────────────┐
-│  AI OPERATIONS CENTER (logo) │
-├──────────────────────────────┤
-│  SYSTEMS OVERVIEW            │
-│  ● Aurora DB      HEALTHY    │
-│  ● API Gateway    HEALTHY    │
-│  ● ECS Payments   HEALTHY    │
-│  ● Lambda Auth    HEALTHY    │
-│  ● S3 Storage     HEALTHY    │
-├──────────────────────────────┤
-│  LIVE METRICS                │
-│  CPU ████░░░░ 23%     99.99% │
-│  MEM ██████░░ 41%     uptime │
-│  RPS ─────── 1.2k           │
-│  Conn ────── 842            │
-├──────────────────────────────┤
-│  AI AGENT STATUS             │
-│  ◉ Idle                      │
-│  Monitoring system activity. │
-│  No issues detected.         │
-├──────────────────────────────┤
-│  CALL TRANSCRIPT (Phase 4+)  │
-│  (hidden until call starts)  │
-└──────────────────────────────┘
-```
-
-### Styling
-
-- Dark background matching the city aesthetic (#0a0e1a or similar)
-- Monospace/tech font (JetBrains Mono or IBM Plex Mono)
-- Cyan/green accent colors matching the pixel-art palette
-- Cloudscape components with custom dark theme override (CSS custom properties)
-- Sparkline charts: lightweight inline SVG (no heavy charting library)
-
-### Metrics Data
-
-Phase 3 uses mock data generators that produce realistic-looking metrics:
-- CPU/Memory: slowly fluctuating random values
-- RPS: sine wave with noise
-- Connections: stable with occasional small jumps
-
-During an incident, metrics react: CPU spikes, connections drop, RPS goes to zero on the affected service.
-
-### Integration with Scene State
-
-The sidebar reads from the same Zustand store as the PixiJS scene:
-- HEALTHY → all green dots, "Idle" agent status
-- INCIDENT → affected service dot goes red, agent status changes to "ACTIVE — Detecting anomaly..."
-- DIAGNOSING → agent status: "Diagnosing — Pulling logs from {service}..."
-- CALLING → agent status: "Escalating — Calling on-call engineer..."
-- RESOLVED → all dots back to green, agent status: "Resolved — Incident cleared"
-
----
-
-## Technical Decisions
+## Technical Decisions (Updated)
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
-| Animation engine | PixiJS v8 | Purpose-built for 2D sprite rendering, WebGL performance, lightweight |
-| State management | Zustand | Minimal boilerplate, works outside React (PixiJS can subscribe), tiny bundle |
-| Sprite art | AI-generated PNGs | Custom look, fast iteration, consistent pixel-art style |
-| Sidebar components | Cloudscape (dark theme) | Matches reference repos, AWS-native look |
-| Sparkline charts | Inline SVG (hand-rolled) | No library needed for simple lines, tiny footprint |
-| React-PixiJS bridge | Ref-based (no @pixi/react) | Cleaner separation, avoids reconciler overhead for 60fps animation |
+| Rendering | Canvas 2D (native) | Simpler than PixiJS for this use case, no scaling issues, percentage-based layout works naturally |
+| Sprite rendering | `drawImage` with source rect | Direct, no library overhead, `imageSmoothingEnabled=false` for crisp pixels |
+| State management | Zustand | Minimal boilerplate, works outside React, tiny bundle |
+| Sprite art | PixelSpaces + OldTown Citizens packs | Consistent pixel-art style, pre-made furniture/NPCs, free |
+| Sidebar | Plain CSS (dark theme) | Lightweight, matches aesthetic |
+| React-Canvas bridge | Ref-based | CityScene class manages canvas lifecycle, React wrapper just mounts/unmounts |
+| Scale approach | 3x integer scale via ctx.scale() | Crisp pixel art at any screen size |
 
 ---
 
-## File Structure
+## File Structure (Current)
 
 ```
-src_frontend/app/src/
-├── app/
-│   ├── main.tsx
-│   └── App.tsx
-├── components/
-│   ├── CityCanvas.tsx          ← React wrapper for PixiJS
-│   ├── Sidebar.tsx             ← Right panel container
-│   ├── SystemsOverview.tsx     ← Status dots
-│   ├── LiveMetrics.tsx         ← Sparklines + numbers
-│   ├── AgentStatus.tsx         ← AI agent state display
-│   └── DevPanel.tsx            ← Hidden debug controls
-├── engine/
-│   ├── CityScene.ts            ← Main PixiJS scene orchestrator
-│   ├── layers/
-│   │   ├── BackgroundLayer.ts  ← Static background
-│   │   ├── BuildingLayer.ts    ← Building sprites + labels
-│   │   ├── ConnectionLayer.ts  ← Animated data flow lines
-│   │   ├── CharacterLayer.ts   ← Walking/idle characters
-│   │   └── EffectsLayer.ts     ← Particles, sparks, confetti
-│   ├── sprites/
-│   │   ├── Building.ts         ← Building sprite class
-│   │   ├── Character.ts        ← Character with state machine
-│   │   └── Particle.ts         ← Reusable particle
-│   └── config.ts               ← Positions, paths, timing constants
-├── store/
-│   └── sceneStore.ts           ← Zustand store (state machine)
-├── lib/
-│   ├── websocket.ts            ← WebSocket client (future)
-│   └── mockMetrics.ts          ← Fake metric generators
-├── types/
-│   └── scene.ts                ← SceneState, Building, Character types
-└── styles/
-    └── theme.css               ← Dark theme overrides
+src_frontend/app/
+├── package.json              (react, zustand, vite, typescript)
+├── index.html
+├── vite.config.ts
+├── tsconfig.json
+├── public/
+│   └── sprites/
+│       ├── characters/       (npc-male.png, npc-female.png, artun-khali.png)
+│       ├── furniture/        (~25 PNGs: cabinets, tables, laptops, etc.)
+│       └── bg/               (mountains, clouds, trees, houses)
+└── src/
+    ├── app/
+    │   ├── main.tsx          (React root)
+    │   └── App.tsx           (layout: CityCanvas + Sidebar)
+    ├── components/
+    │   ├── CityCanvas.tsx    (React wrapper for Canvas 2D scene)
+    │   └── Sidebar.tsx       (Systems overview + agent status)
+    ├── engine/
+    │   ├── CityScene.ts      (Main scene: background, building, characters, animation loop)
+    │   └── config.ts         (Room definitions, furniture placement, NPC config, layout constants)
+    ├── store/
+    │   └── sceneStore.ts     (Zustand: SceneState machine + triggerIncident/reset)
+    ├── types/
+    │   └── scene.ts          (SceneState type, BuildingConfig, ConnectionConfig, CharacterConfig)
+    └── styles/
+        └── theme.css         (Dark theme, 70/30 layout, sidebar styling)
 ```
+
+---
+
+## Phase 2: Incident Mode (TODO)
+
+**Goal**: When state changes to `INCIDENT_DETECTED`, the building reacts dramatically. The affected room flashes red, characters in that room panic, others stare. Triggered by button initially, later by WebSocket.
+
+### Planned Visual Transitions
+
+| State | Affected Room | Other Rooms | Characters |
+|-------|--------------|-------------|------------|
+| INCIDENT_DETECTED | Flash red background, dark furniture | Dim slightly | Affected room: panic. Others: idle/stare |
+| DIAGNOSING | Pulse orange | Normal | One character "runs" to affected room |
+| CALLING | Still red | Normal | All idle, phone icon above one character |
+| RECOVERING | Flicker back to normal | Normal | Watch hopefully |
+| RESOLVED | All normal | All normal | Brief celebrate animation |
+
+### Dev Panel (Ctrl+D)
+
+Hidden panel with buttons: Trigger incident on specific room, advance phase, reset.
+
+---
+
+## Phase 3: Right Sidebar Enhancement (TODO)
+
+### Planned additions:
+- **Live Metrics**: CPU/MEM/IOPS sparkline bars (mock data with random fluctuation)
+- **AI Agent Log**: Timestamped entries showing agent reasoning steps
+- **Call Transcript**: Live text of AI↔human conversation (Phase 4)
+
+### Metrics react to state:
+- HEALTHY: normal fluctuation
+- INCIDENT: affected service metrics spike/drop
+- RESOLVED: restore to normal
+
+---
+
+## Phase 4: Backend Integration (TODO)
+
+- WebSocket connection to ECS backend
+- `triggerIncident()` called from WebSocket message handler
+- Live call transcript streamed in real-time
+- Volunteer phone number input
 
 ---
 
@@ -313,16 +226,40 @@ src_frontend/app/src/
 
 | Phase | Done When |
 |-------|-----------|
-| Phase 1 | City renders in browser with buildings, flowing connections, and walking characters. Runs at 60fps. |
-| Phase 2 | Pressing a button triggers incident → buildings go red, characters panic, then auto-resolves. State machine drives all transitions. |
-| Phase 3 | Right sidebar shows system status, metrics (animated sparklines), and AI agent status. All react to state changes in sync with the city. |
+| Phase 1 ✅ | Cross-section building renders with rooms, furniture, animated characters. Runs at 60fps. Labels visible on all floors. |
+| Phase 2 ✅ | Pressing a button triggers incident → affected room goes red, characters panic, auto-resolves. State machine drives all transitions. |
+| Phase 3 ✅ | Right sidebar shows live metrics, AI agent log. All react to state changes. |
+| Phase 4 | WebSocket connects to backend, live call transcript displays, full demo loop works end-to-end. |
 
 ---
 
-## Out of Scope (Future Phases)
+## Dependencies
 
-- Real WebSocket connection to backend (Phase 4)
-- Live call transcript display (Phase 4)
-- Volunteer phone number input (Phase 4)
-- Audio/sound effects (nice-to-have)
-- Mobile responsiveness (booth display is fixed resolution)
+### NPM Packages
+```json
+{
+  "zustand": "^5.0.0",
+  "react": "^18.3.0",
+  "react-dom": "^18.3.0",
+  "vite": "^5.4.0",
+  "typescript": "^5.4.0"
+}
+```
+
+Note: **PixiJS was removed** — pure Canvas 2D is used. `pixi.js` is still in package.json but unused and can be removed.
+
+### Asset Packs (in `src_workspaces/general/samples/`)
+- `PixelSpacesFreePack/` — rooms, furniture, backgrounds, NPCs
+- `OldTownCitizensv0.1/` — diverse character sprite sheets
+
+---
+
+## Dev Commands
+
+```bash
+cd src_frontend/app
+npm install
+npm run dev        # http://localhost:3000
+npm run build      # production build → dist/
+npx tsc --noEmit   # type check
+```
