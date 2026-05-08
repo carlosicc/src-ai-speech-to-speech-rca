@@ -201,3 +201,28 @@ html, body, #root {
   opacity: 0.4;
   cursor: not-allowed;
 }
+
+/* Alert states */
+.status-dot--alert {
+  animation: pulse-red 1s infinite;
+}
+
+@keyframes pulse-red {
+  0%, 100% { opacity: 1; box-shadow: 0 0 4px #ef5350; }
+  50% { opacity: 0.5; box-shadow: 0 0 8px #ef5350; }
+}
+
+.system-item--alert .system-status {
+  color: var(--accent-red);
+  font-weight: bold;
+}
+
+.agent-indicator--active {
+  background: var(--accent-red);
+  animation: pulse-fast 0.8s infinite;
+}
+
+@keyframes pulse-fast {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
