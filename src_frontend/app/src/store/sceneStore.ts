@@ -1,5 +1,7 @@
 import { create } from "zustand";
 import type { SceneState } from "@/types/scene";
+import { useAgentLogStore } from "@/store/agentLogStore";
+import type { LogEntry } from "@/store/agentLogStore";
 
 interface SceneStore {
   state: SceneState;
@@ -53,6 +55,10 @@ export const useSceneStore = create<SceneStore>((set, get) => ({
   autoAdvance: true,
   triggerIncident: (service: string) => {
     set({ state: "INCIDENT_DETECTED", affectedService: service });
+    useAgentLogStore.getState().push(
+      `Incident detected on ${service}. Activating response protocol.`,
+      "error"
+    );
     scheduleNext(get);
   },
   advancePhase: () => {
@@ -62,11 +68,23 @@ export const useSceneStore = create<SceneStore>((set, get) => ({
       state: next,
       affectedService: next === "HEALTHY" ? null : get().affectedService,
     });
+    const LOG_MESSAGES: Partial<Record<SceneState, { msg: string; level: LogEntry["level"] }>> = {
+      DIAGNOSING: { msg: "Diagnosis agent activated. Pulling logs and running health checks...", level: "warn" },
+      CALLING: { msg: "Escalation triggered. Connecting to on-call DBA via voice...", level: "warn" },
+      RECOVERING: { msg: "DBA confirmed. Executing recovery procedure...", level: "info" },
+      RESOLVED: { msg: "All systems restored. Incident resolved successfully.", level: "success" },
+      HEALTHY: { msg: "System nominal. Returning to monitoring state.", level: "info" },
+    };
+    const logEntry = LOG_MESSAGES[next];
+    if (logEntry) {
+      useAgentLogStore.getState().push(logEntry.msg, logEntry.level);
+    }
     scheduleNext(get);
   },
   reset: () => {
     if (autoTimer) clearTimeout(autoTimer);
     set({ state: "HEALTHY", affectedService: null });
+    useAgentLogStore.getState().clear();
   },
   setAutoAdvance: (enabled: boolean) => {
     set({ autoAdvance: enabled });
