@@ -3,26 +3,49 @@ import os
 
 import aws_cdk as cdk
 
-from src_rca_agent_demo_01.src_rca_agent_demo_01_stack import SrcRcaAgentDemo01Stack
-
+from src_infra.stack_infrastructure import InfrastructureStack
+from src_infra.stack_backend import BackendStack
+from src_infra.stack_frontend import FrontendStack
 
 app = cdk.App()
-SrcRcaAgentDemo01Stack(app, "SrcRcaAgentDemo01Stack",
-    # If you don't specify 'env', this stack will be environment-agnostic.
-    # Account/Region-dependent features and context lookups will not work,
-    # but a single synthesized template can be deployed anywhere.
 
-    # Uncomment the next line to specialize this stack for the AWS Account
-    # and Region that are implied by the current CLI configuration.
+# Read environment from context (default: dev01)
+env_name = app.node.try_get_context("env") or "dev01"
+env_context = app.node.try_get_context(env_name)
 
-    #env=cdk.Environment(account=os.getenv('CDK_DEFAULT_ACCOUNT'), region=os.getenv('CDK_DEFAULT_REGION')),
+if not env_context:
+    raise ValueError(f"No context found for environment: {env_name}")
 
-    # Uncomment the next line if you know exactly what Account and Region you
-    # want to deploy the stack to. */
+# AWS environment
+aws_env = cdk.Environment(
+    account=os.environ.get("CDK_DEFAULT_ACCOUNT"),
+    region=env_context.get("region", "eu-west-1"),
+)
 
-    #env=cdk.Environment(account='123456789012', region='us-east-1'),
+# Common props passed to all stacks
+common_props = {
+    "env_name": env_name,
+    "env_context": env_context,
+    "env": aws_env,
+}
 
-    # For more information, see https://docs.aws.amazon.com/cdk/latest/guide/environments.html
-    )
+# 1. Foundation stack (DynamoDB, S3, Lambda Layer)
+stack_infrastructure = InfrastructureStack(
+    app, f"RcaInfrastructureStack-{env_name}", **common_props
+)
+
+# 2. Backend stack (ECS Fargate — agents, WebSocket)
+stack_backend = BackendStack(
+    app, f"RcaBackendStack-{env_name}",
+    infrastructure=stack_infrastructure,
+    **common_props,
+)
+stack_backend.add_dependency(stack_infrastructure)
+
+# 3. Frontend stack (S3 + CloudFront — pending public access confirmation)
+stack_frontend = FrontendStack(
+    app, f"RcaFrontendStack-{env_name}", **common_props
+)
+stack_frontend.add_dependency(stack_backend)
 
 app.synth()

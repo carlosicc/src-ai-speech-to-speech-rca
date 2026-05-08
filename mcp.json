@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "aws-docs": {
+      "command": "npx",
+      "args": ["-y", "@anthropic/mcp-server-aws-docs"],
+      "description": "AWS documentation search and retrieval"
+    }
+  }
+}

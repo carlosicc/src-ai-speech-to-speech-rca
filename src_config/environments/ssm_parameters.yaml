@@ -1,0 +1,27 @@
+# SSM Parameters for the RCA Agent Demo
+# Deployed with: python src_config/scripts/deploy_ssm_parameters.py --env {env}
+
+parameters:
+  # Bedrock model configuration
+  - name: bedrock/models/fast/model_id
+    value: eu.anthropic.claude-haiku-4-5-20251001-v1:0
+  - name: bedrock/models/standard/model_id
+    value: eu.anthropic.claude-sonnet-4-6-20250514-v1:0
+  - name: bedrock/models/advanced/model_id
+    value: eu.anthropic.claude-opus-4-6-v1:0
+  - name: bedrock/models/voice/model_id
+    value: amazon.nova-sonic-v1:0
+
+  # Demo configuration
+  - name: demo/oncall_phone_number
+    value: PLACEHOLDER
+  - name: demo/voice_passphrase
+    value: PLACEHOLDER
+  - name: demo/incident_loop_interval_seconds
+    value: "180"
+
+  # Feature flags
+  - name: features/enable_voice_call
+    value: "true"
+  - name: features/enable_whatsapp
+    value: "false"
