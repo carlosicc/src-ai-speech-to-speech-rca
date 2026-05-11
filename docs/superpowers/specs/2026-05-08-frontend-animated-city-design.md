@@ -146,7 +146,7 @@ HEALTHY → INCIDENT_DETECTED → DIAGNOSING → CALLING → RECOVERING → RESO
 
 ---
 
-## File Structure (Current)
+## File Structure (Current — after Phases 1–3)
 
 ```
 src_frontend/app/
@@ -162,54 +162,60 @@ src_frontend/app/
 └── src/
     ├── app/
     │   ├── main.tsx          (React root)
-    │   └── App.tsx           (layout: CityCanvas + Sidebar)
+    │   └── App.tsx           (layout: CityCanvas + Sidebar + DevPanel)
     ├── components/
     │   ├── CityCanvas.tsx    (React wrapper for Canvas 2D scene)
-    │   └── Sidebar.tsx       (Systems overview + agent status)
+    │   ├── Sidebar.tsx       (Systems overview + MetricsPanel + Agent status + AgentLog)
+    │   ├── DevPanel.tsx      (Ctrl+D toggled panel: trigger incident, advance, reset, auto-advance toggle)
+    │   ├── MetricsPanel.tsx  (Horizontal bar metrics: CPU/MEM/IOPS per service, state-reactive)
+    │   └── AgentLog.tsx      (Scrollable timestamped log of agent reasoning, auto-scroll)
     ├── engine/
-    │   ├── CityScene.ts      (Main scene: background, building, characters, animation loop)
-    │   └── config.ts         (Room definitions, furniture placement, NPC config, layout constants)
+    │   ├── CityScene.ts      (Main scene: background, building, room overlays, characters, animation loop)
+    │   ├── config.ts         (Room definitions, furniture placement, NPC config, layout constants)
+    │   └── effects.ts        (Pure functions: getRoomOverlay, getCharacterBehavior per state+room)
     ├── store/
-    │   └── sceneStore.ts     (Zustand: SceneState machine + triggerIncident/reset)
+    │   ├── sceneStore.ts     (Zustand: SceneState machine + auto-advance timer + log push on transitions)
+    │   ├── metricsStore.ts   (Zustand: per-service mock metrics with fluctuation/spike/drop)
+    │   └── agentLogStore.ts  (Zustand: timestamped log entries array + push/clear)
     ├── types/
     │   └── scene.ts          (SceneState type, BuildingConfig, ConnectionConfig, CharacterConfig)
     └── styles/
-        └── theme.css         (Dark theme, 70/30 layout, sidebar styling)
+        └── theme.css         (Dark theme, 70/30 layout, sidebar, dev panel, metrics bars, agent log)
 ```
 
 ---
 
-## Phase 2: Incident Mode (TODO)
+## Phase 2: Incident Mode (IMPLEMENTED)
 
-**Goal**: When state changes to `INCIDENT_DETECTED`, the building reacts dramatically. The affected room flashes red, characters in that room panic, others stare. Triggered by button initially, later by WebSocket.
+**What was built:**
+- `engine/effects.ts` — pure functions: `getRoomOverlay()` returns color+alpha per room/state (flash red, pulse orange, flicker), `getCharacterBehavior()` returns walk/idle/panic per room
+- `CityScene.ts` draws colored overlays on affected rooms, characters behave per-room (affected = panic, others = idle)
+- `DevPanel.tsx` — Ctrl+D toggled floating panel with: per-room incident trigger buttons, Advance Phase, Reset, Auto-advance ON/OFF toggle
+- `sceneStore.ts` — auto-advance timer progresses through states on configurable durations (3s→4s→5s→3s→2s)
 
-### Planned Visual Transitions
+### Visual Transitions (as implemented)
 
 | State | Affected Room | Other Rooms | Characters |
 |-------|--------------|-------------|------------|
-| INCIDENT_DETECTED | Flash red background, dark furniture | Dim slightly | Affected room: panic. Others: idle/stare |
-| DIAGNOSING | Pulse orange | Normal | One character "runs" to affected room |
-| CALLING | Still red | Normal | All idle, phone icon above one character |
-| RECOVERING | Flicker back to normal | Normal | Watch hopefully |
-| RESOLVED | All normal | All normal | Brief celebrate animation |
-
-### Dev Panel (Ctrl+D)
-
-Hidden panel with buttons: Trigger incident on specific room, advance phase, reset.
+| INCIDENT_DETECTED | Flash red (oscillating alpha) | Dim (black overlay 0.15) | Affected: panic. Others: idle |
+| DIAGNOSING | Pulse orange | Normal | Affected: panic. Others: idle |
+| CALLING | Static red overlay | Normal | All idle |
+| RECOVERING | Flicker (random alpha) | Normal | All idle |
+| RESOLVED | Normal | Normal | All walk normally |
 
 ---
 
-## Phase 3: Right Sidebar Enhancement (TODO)
+## Phase 3: Right Sidebar Enhancement (IMPLEMENTED)
 
-### Planned additions:
-- **Live Metrics**: CPU/MEM/IOPS sparkline bars (mock data with random fluctuation)
-- **AI Agent Log**: Timestamped entries showing agent reasoning steps
-- **Call Transcript**: Live text of AI↔human conversation (Phase 4)
+**What was built:**
+- **Live Metrics** (`MetricsPanel.tsx`): Horizontal fill bars for CPU/MEM/IOPS per service (top 4). Bars animate with smooth CSS transitions. Turn red when >80%. Mock data fluctuates normally; affected service spikes during incidents.
+- **AI Agent Log** (`AgentLog.tsx`): Scrollable timestamped log. Entries pushed automatically on each state transition (color-coded: error/warn/info/success). Auto-scrolls to bottom. Clears on reset.
+- **Stores**: `metricsStore.ts` (tick-based mock data), `agentLogStore.ts` (push/clear pattern)
 
-### Metrics react to state:
-- HEALTHY: normal fluctuation
-- INCIDENT: affected service metrics spike/drop
-- RESOLVED: restore to normal
+### Metrics behavior:
+- HEALTHY: normal fluctuation around baselines (CPU ~35%, MEM ~45%, IOPS ~25%)
+- INCIDENT: affected service CPU/MEM spike, IOPS drops
+- RESOLVED: gradual return to normal
 
 ---
 
