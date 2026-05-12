@@ -54,7 +54,8 @@
         "enable_jira": false
       },
       "twilio": {
-        "secret_name": "rca/twilio/credentials"
+        "secret_name": "rca/twilio/credentials",
+        "secret_arn": "arn:aws:secretsmanager:eu-west-1:000000000000:secret:rca-secret-twilio-000000000000-eu-west-1-dev01-XXXXXX"
       }
     },
     "prod": {

@@ -43,22 +43,22 @@ Booth visitors can **volunteer to receive the call themselves**, proving the sys
                                │ WebSocket
                                ▼
 ┌──────────────────────────────────────────────────────────────────────┐
-│                     BACKEND (ECS Fargate)                             │
-│                                                                       │
+│                           BACKEND                                    │
+│                                                                      │
 │  ┌─────────────────────────────────────────────────────────────────┐ │
-│  │  Master Agent (Strands Agents SDK on AgentCore)                  │ │
-│  │  Orchestrates incident response following SoP                    │ │
+│  │  Master Agent (Strands Agents SDK on AgentCore)                 │ │
+│  │  Orchestrates incident response following SoP                   │ │
 │  └───────┬──────────────────┬───────────────────┬──────────────────┘ │
-│          │                  │                   │                     │
-│  ┌───────▼──────┐  ┌───────▼───────┐  ┌───────▼──────────────────┐  │
-│  │  Diagnosis   │  │  Escalation   │  │  Voice Agent             │  │
-│  │  Agent       │  │  Agent        │  │  (Amazon Nova Sonic)     │  │
-│  │              │  │               │  │                          │  │
-│  │  - Pull logs │  │  - WhatsApp   │  │  - Places real call      │  │
-│  │  - Health    │  │  - Jira ticket│  │  - Explains incident     │  │
-│  │    checks    │  │               │  │  - Authenticates user    │  │
-│  │  - RCA       │  │               │  │  - Executes recovery     │  │
-│  └──────────────┘  └───────────────┘  └──────────────────────────┘  │
+│          │                  │                   │                    │
+│  ┌───────▼──────┐  ┌───────▼───────┐  ┌───────▼──────────────────┐   │
+│  │  Diagnosis   │  │  Escalation   │  │  Voice Agent             │   │
+│  │  Agent       │  │  Agent        │  │  (Amazon Nova Sonic)     │   │
+│  │              │  │               │  │                          │   │
+│  │  - Pull logs │  │  - WhatsApp   │  │  - Places real call      │   │
+│  │  - Health    │  │  - Jira ticket│  │  - Explains incident     │   │
+│  │    checks    │  │               │  │  - Authenticates user    │   │
+│  │  - RCA       │  │               │  │  - Executes recovery     │   │
+│  └──────────────┘  └───────────────┘  └──────────────────────────┘   │
 │                                                                       │
 │  ┌─────────────────────────────────────────────────────────────────┐ │
 │  │  Monitoring Simulator                                            │ │
@@ -71,6 +71,39 @@ Booth visitors can **volunteer to receive the call themselves**, proving the sys
 │  └─────────────────────────────────────────────────────────────────┘ │
 └──────────────────────────────────────────────────────────────────────┘
 ```
+
+---
+
+## Voice Modes
+
+The voice agent supports **three redundant modes** for the AI-to-human phone call, giving booth operators flexibility depending on connectivity, reliability needs, and demo impact:
+
+| | Mode A | Mode B | Mode C |
+|---|---|---|---|
+| **Name** | AgentCore + Twilio | Direct Bedrock + Twilio | Direct Bedrock + Browser |
+| **Audio Transport** | Real phone call (Twilio) | Real phone call (Twilio) | Browser microphone & speaker |
+| **AI Engine** | AgentCore BidiAgent (managed) | Nova Sonic bidirectional stream | Nova Sonic bidirectional stream |
+| **Tool Execution** | Automatic (SDK callbacks) | In-process detection & dispatch | In-process detection & dispatch |
+| **External Dependencies** | Bedrock, AgentCore, Twilio | Bedrock, Twilio | Bedrock only |
+| **Demo Impact** | Highest — managed agent + real call | High — real phone rings | Medium — no phone, browser-only |
+| **Reliability** | Medium — most moving parts | High — fewer hops | Highest — zero external deps |
+| **Best For** | Showing AgentCore capabilities | Reliable live phone demo | Fallback / quick iterations |
+
+### Mode A — AgentCore + Twilio
+
+Twilio places an outbound call. Audio streams through Twilio Media Streams into an **AgentCore BidiAgent** running Nova Sonic. The Strands SDK handles the entire bidirectional protocol (session lifecycle, tool specs, barge-in) automatically. You only manage the audio transport bridge.
+
+### Mode B — Direct Bedrock + Twilio
+
+Same real phone call via Twilio, but the backend manages the Nova Sonic bidirectional stream directly using `invoke_model_with_bidirectional_stream`. The backend handles session events, tool detection, and audio resampling (mulaw 8kHz ↔ PCM 24kHz) in-process — fewer moving parts, higher reliability.
+
+### Mode C — Direct Bedrock + Browser
+
+No phone call. The browser captures microphone audio (PCM 16kHz), streams it over WebSocket to the backend, which resamples to 24kHz and forwards to Nova Sonic. Responses play back through the browser speaker. Zero external dependencies beyond Bedrock — the most reliable option for demos where Twilio or AgentCore connectivity is uncertain.
+
+### Voice Mode Selector
+
+The frontend DevPanel includes a voice mode dropdown. Operators can switch modes between demo runs. If Mode A or B encounters issues, the system gracefully falls back to Mode C.
 
 ---
 

@@ -1,6 +1,4 @@
-import { useEffect } from "react";
 import { useMetricsStore } from "@/store/metricsStore";
-import { useSceneStore } from "@/store/sceneStore";
 import { ROOMS } from "@/engine/config";
 
 function MetricBar({ value, color }: { value: number; color: string }) {
@@ -17,21 +15,6 @@ function MetricBar({ value, color }: { value: number; color: string }) {
 
 export function MetricsPanel() {
   const metrics = useMetricsStore((s) => s.metrics);
-  const start = useMetricsStore((s) => s.start);
-  const tick = useMetricsStore((s) => s.tick);
-  const sceneState = useSceneStore((s) => s.state);
-  const affectedService = useSceneStore((s) => s.affectedService);
-
-  useEffect(() => {
-    start(ROOMS.map((r) => r.id));
-  }, [start]);
-
-  useEffect(() => {
-    const id = setInterval(() => {
-      tick(sceneState, affectedService);
-    }, 800);
-    return () => clearInterval(id);
-  }, [tick, sceneState, affectedService]);
 
   return (
     <section className="sidebar-section">
