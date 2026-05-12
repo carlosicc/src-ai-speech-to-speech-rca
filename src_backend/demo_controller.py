@@ -23,6 +23,7 @@ class DemoController:
     def __init__(self) -> None:
         self._loop_task: asyncio.Task | None = None
         self._phase_task: asyncio.Task | None = None
+        self._auto_triggered: bool = False
 
     async def start(self) -> None:
         self._loop_task = asyncio.create_task(self._auto_loop())
@@ -37,9 +38,10 @@ class DemoController:
             self._phase_task = None
         logger.info("Demo controller stopped")
 
-    async def trigger_incident(self, service: str = "aurora-db") -> None:
+    async def trigger_incident(self, service: str = "aurora-db", auto: bool = False) -> None:
         if demo_state.phase != Phase.HEALTHY:
             return
+        self._auto_triggered = auto
         demo_state.trigger_incident(service)
         await manager.broadcast({
             "type": "incident_detected",
@@ -103,16 +105,22 @@ class DemoController:
         })
 
     async def _run_voice_session(self) -> None:
+        voice_mode = demo_state.voice_mode
+        # Only place real phone calls on manual trigger — never on auto-loop
+        if voice_mode in ("mode_a", "mode_b") and self._auto_triggered:
+            logger.info(f"Auto-loop: skipping real call (mode={voice_mode}), using simulated call")
+            voice_mode = "mode_c"
+
         await manager.broadcast({
             "type": "call_started",
             "payload": {
                 "incident_id": demo_state.incident.incident_id if demo_state.incident else "",
                 "phone_number": demo_state.phone_number,
-                "voice_mode": demo_state.voice_mode,
+                "voice_mode": voice_mode,
             },
         })
 
-        if demo_state.voice_mode == "mode_b":
+        if voice_mode == "mode_b":
             await manager.broadcast({
                 "type": "agent_log",
                 "payload": {"message": f"Placing call to {demo_state.phone_number} (Mode B: Twilio + Bedrock)...", "level": "info"},
@@ -170,7 +178,7 @@ class DemoController:
             if not manager.active_connections:
                 continue
             logger.info("Auto-loop triggering incident")
-            await self.trigger_incident("aurora-db")
+            await self.trigger_incident("aurora-db", auto=True)
 
 
 demo_controller = DemoController()

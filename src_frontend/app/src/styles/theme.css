@@ -197,6 +197,13 @@ html, body, #root {
   border-color: var(--accent-cyan);
 }
 
+.dev-panel-buttons button.active {
+  background: rgba(38, 198, 218, 0.35);
+  border-color: var(--accent-cyan);
+  color: var(--accent-cyan);
+  box-shadow: 0 0 6px rgba(38, 198, 218, 0.3);
+}
+
 .dev-panel-buttons button:disabled {
   opacity: 0.4;
   cursor: not-allowed;

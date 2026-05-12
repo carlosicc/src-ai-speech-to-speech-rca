@@ -97,6 +97,20 @@ Twilio places an outbound call. Audio streams through Twilio Media Streams into 
 
 Same real phone call via Twilio, but the backend manages the Nova Sonic bidirectional stream directly using `invoke_model_with_bidirectional_stream`. The backend handles session events, tool detection, and audio resampling (mulaw 8kHz ↔ PCM 24kHz) in-process — fewer moving parts, higher reliability.
 
+#### Call Experience (Modes A & B)
+
+When the phone rings and the callee picks up, they hear **two distinct voices** in sequence:
+
+1. **"Please wait while we connect your call to the AI Operations Center"** — a brief, pre-rendered message from **Amazon Polly** (Matthew, male voice). This plays during the ~2 seconds it takes for the WebSocket Media Stream to connect and Nova Sonic to initialize.
+
+2. **The AI Operations Agent** — powered by **Nova Sonic** (Tiffany, female voice). This is the live, interactive agent that explains the incident, authenticates the caller, and executes recovery tools.
+
+This is a single continuous call — no actual transfer happens. The Polly intro serves as a connection buffer: without it, the callee would hear dead silence while the bidirectional stream establishes. The voice change is intentional — it signals to the callee that they've moved from a static greeting into a live AI conversation.
+
+#### Voice Playback Speed (Mode C)
+
+In browser mode, the AI voice plays back at **1.11x speed** (11% faster than native). This is achieved by creating the browser's AudioContext at 26640 Hz while feeding it 24000 Hz audio — the browser consumes samples faster, resulting in snappier delivery without pitch distortion. The speed factor is configurable in `src_frontend/app/src/lib/audioHandler.ts`.
+
 ### Mode C — Direct Bedrock + Browser
 
 No phone call. The browser captures microphone audio (PCM 16kHz), streams it over WebSocket to the backend, which resamples to 24kHz and forwards to Nova Sonic. Responses play back through the browser speaker. Zero external dependencies beyond Bedrock — the most reliable option for demos where Twilio or AgentCore connectivity is uncertain.

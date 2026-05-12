@@ -53,6 +53,7 @@
         "enable_whatsapp": false,
         "enable_jira": false
       },
+      "nlb_cert_arn": "arn:aws:acm:eu-west-1:000000000000:certificate/00000000-6944-48a8-b3df-767c889ab2d2",
       "twilio": {
         "secret_name": "rca/twilio/credentials",
         "secret_arn": "arn:aws:secretsmanager:eu-west-1:000000000000:secret:rca-secret-twilio-000000000000-eu-west-1-dev01-XXXXXX"

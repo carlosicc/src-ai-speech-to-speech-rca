@@ -185,9 +185,9 @@ class BackendStack(Stack):
         )
 
         # TLS listener (443) — terminates TLS, forwards to ECS on port 8080
-        tls_cert_arn = self.node.try_get_context("nlb_cert_arn") or ""
+        tls_cert_arn = env_context.get("nlb_cert_arn", "")
         if not tls_cert_arn:
-            tls_cert_arn = "arn:aws:acm:eu-west-1:000000000000:certificate/00000000-6944-48a8-b3df-767c889ab2d2"
+            raise ValueError("CDK context 'nlb_cert_arn' is required. Set it in cdk.json under the environment context.")
 
         from aws_cdk import aws_certificatemanager as acm
         cert = acm.Certificate.from_certificate_arn(self, f"NlbCert-{env_name}", tls_cert_arn)

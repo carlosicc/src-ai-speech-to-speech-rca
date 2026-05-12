@@ -8,6 +8,7 @@ import asyncio
 import base64
 import json
 import logging
+import struct
 from typing import Any
 
 from fastapi import WebSocket, WebSocketDisconnect
@@ -113,6 +114,7 @@ class TwilioMediaStreamHandler:
                     self._call_sid = start_data.get("callSid", "")
                     logger.info(f"Twilio Media Stream started: streamSid={self._stream_sid}, callSid={self._call_sid}")
                     await self._start_nova_session()
+                    await self._send_initial_audio()
 
                 elif event_type == "media":
                     media = message.get("media", {})
@@ -142,6 +144,24 @@ class TwilioMediaStreamHandler:
         )
         await self._nova_session.start()
         logger.info("Nova Sonic session started for Twilio call")
+
+    async def _send_initial_audio(self) -> None:
+        """Send a short silence burst to Nova Sonic to trigger its greeting.
+
+        Nova Sonic won't speak until it receives audio input.
+        Send 500ms of silence (24kHz, 16-bit) to kickstart the conversation.
+        """
+        if not self._nova_session:
+            return
+        silence_samples = 12000  # 500ms at 24kHz
+        silence_pcm = struct.pack(f"<{silence_samples}h", *([0] * silence_samples))
+        silence_b64 = base64.b64encode(silence_pcm).decode("ascii")
+        chunk_size = 4800  # 200ms chunks
+        for i in range(0, silence_samples * 2, chunk_size * 2):
+            chunk = silence_pcm[i:i + chunk_size * 2]
+            chunk_b64 = base64.b64encode(chunk).decode("ascii")
+            await self._nova_session.send_audio(chunk_b64)
+        logger.info("Sent initial silence to Nova Sonic to trigger greeting")
 
     async def _handle_nova_audio(self, pcm_24k_bytes: bytes) -> None:
         """Convert Nova Sonic PCM output to mulaw and send to Twilio."""

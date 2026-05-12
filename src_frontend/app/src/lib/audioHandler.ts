@@ -2,6 +2,8 @@ import { send } from "@/lib/websocket";
 
 const INPUT_SAMPLE_RATE = 16000;
 const OUTPUT_SAMPLE_RATE = 24000;
+const PLAYBACK_SPEED_FACTOR = 1.11; // 11% speedup for snappier Nova Sonic voice
+const PLAYBACK_SAMPLE_RATE = Math.round(OUTPUT_SAMPLE_RATE * PLAYBACK_SPEED_FACTOR);
 const CHUNK_DURATION_MS = 100;
 const SAMPLES_PER_CHUNK = (INPUT_SAMPLE_RATE * CHUNK_DURATION_MS) / 1000;
 
@@ -59,7 +61,7 @@ export async function startAudioCapture(): Promise<void> {
   isCapturing = true;
 
   if (!playbackContext) {
-    playbackContext = new AudioContext({ sampleRate: OUTPUT_SAMPLE_RATE });
+    playbackContext = new AudioContext({ sampleRate: PLAYBACK_SAMPLE_RATE });
   }
   nextPlayTime = 0;
 }
@@ -98,7 +100,7 @@ function sendAudioChunk(samples: Float32Array): void {
 
 export function playAudioOutput(base64Pcm24k: string): void {
   if (!playbackContext) {
-    playbackContext = new AudioContext({ sampleRate: OUTPUT_SAMPLE_RATE });
+    playbackContext = new AudioContext({ sampleRate: PLAYBACK_SAMPLE_RATE });
   }
 
   if (playbackContext.state === "suspended") {

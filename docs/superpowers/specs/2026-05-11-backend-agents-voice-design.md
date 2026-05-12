@@ -128,6 +128,33 @@ Phone rings → Twilio outbound call → Twilio Media Stream WebSocket
     → Back through Twilio Media Stream → phone speaker
 ```
 
+**Call experience (two-voice design):**
+
+The callee hears two voices in sequence on a single continuous call:
+
+1. **Amazon Polly (Matthew, male)** — Static TwiML `<Say>` plays "Please wait while we connect your call to the AI Operations Center." This buffers the ~2s it takes for the WebSocket Media Stream to connect and Nova Sonic to initialize. Without it, there would be dead silence.
+
+2. **Nova Sonic (Tiffany, female)** — The live AI agent greets the caller, explains the incident, authenticates via passphrase, and executes recovery. Triggered by sending 500ms of silence to Nova Sonic once the stream connects.
+
+The voice change is intentional — it signals the transition from a static greeting to a live AI conversation. Alternatives considered:
+- Same voice for both: Polly Tiffany exists but sounds different from Nova Sonic Tiffany, which could be more confusing
+- No intro: causes 2-3s dead silence on pickup, callee may hang up thinking it's a robocall
+- Shorter intro: current duration (~3s with pause) matches the stream initialization time well
+
+### Voice Playback Speed (Browser — Mode C)
+
+Nova Sonic generates audio at 24kHz, but the frontend AudioContext is created at **26640 Hz** (24000 × 1.11). The browser plays the 24kHz samples at the higher rate, resulting in 11% faster playback — snappier delivery without noticeable pitch distortion.
+
+Configuration: `src_frontend/app/src/lib/audioHandler.ts` line 5:
+```typescript
+const PLAYBACK_SPEED_FACTOR = 1.11; // 11% speedup for snappier Nova Sonic voice
+const PLAYBACK_SAMPLE_RATE = Math.round(OUTPUT_SAMPLE_RATE * PLAYBACK_SPEED_FACTOR);
+```
+
+Adjust `PLAYBACK_SPEED_FACTOR` to taste: `1.0` = normal, `1.05` = subtle, `1.15` = aggressive.
+
+Note: This only affects Mode C (browser playback). Mode B (Twilio phone call) plays at native speed — Twilio controls the audio clock on the phone side.
+
 ### Mode C: Direct Bedrock + Browser (Highest reliability, no external deps)
 
 ```
@@ -603,8 +630,8 @@ Each phase is independently deployable and testable. After completing each phase
 
 **Success criteria:**
 - [x] Select Mode B in UI, click trigger
-- [ ] Real phone rings at configured number (requires Twilio credentials in secret)
-- [ ] On answer: AI voice speaks, explains incident
+- [x] Real phone rings at configured number
+- [ ] On answer: AI voice speaks, explains incident (Nova Sonic greeting needs tuning)
 - [ ] Spoken passphrase → authenticated
 - [ ] "Restart the database" → tool fires, demo resolves
 - [ ] Call ends gracefully
@@ -634,18 +661,23 @@ Each phase is independently deployable and testable. After completing each phase
 - `place_outbound_call` sends inline TwiML (no webhook needed for outbound)
 - `/twilio/media-stream` WebSocket endpoint handles inbound Media Stream from Twilio
 - `TwilioMediaStreamHandler` bridges Twilio mulaw ↔ Nova Sonic PCM via `audio_converter`
+- Sends 500ms silence to Nova Sonic on stream start to trigger AI greeting
 - Graceful degradation: if Twilio credentials missing, call fails but demo continues (timeout)
 - Secret ARN passed via CDK env var `TWILIO_SECRET_ARN`, loaded at startup
+- **Safety**: Auto-loop NEVER places real phone calls (Mode A/B) — only manual trigger does
 
 **Deployed endpoints:**
 - TwiML webhook: `https://rca-nlb-ws-pub-dev01-XXXXXXXXXXXXXXXX.elb.eu-west-1.amazonaws.com/twilio/outbound-call`
 - Media Stream WS: `wss://rca-nlb-ws-pub-dev01-XXXXXXXXXXXXXXXX.elb.eu-west-1.amazonaws.com/twilio/media-stream`
-- Twilio Secret: `rca-secret-twilio-000000000000-eu-west-1-dev01` (needs credentials populated)
+- Twilio Secret: `rca-secret-twilio-000000000000-eu-west-1-dev01` (credentials populated)
 
-**Remaining to complete live phone calls:**
-- Populate Twilio secret with `account_sid`, `auth_token`, `from_number` values
-- Verify Twilio from_number can call the target number (E.164, verified caller ID)
-- Test full voice cycle: phone rings → answer → AI speaks → passphrase → tool → resolve
+**Remaining to complete live voice conversation:**
+- Tune Nova Sonic greeting delivery — call connects, AI needs to speak first reliably
+- Verify full voice cycle: phone rings → answer → AI speaks → passphrase → tool → resolve
+- The "unexpected error" from Nova Sonic may need investigation (possibly needs continuous audio feeding during Twilio silence)
+
+**DevPanel UI fix (2026-05-12):**
+- Added `.active` CSS class for voice mode buttons — now highlights selected mode with cyan glow
 
 **Reference patterns:**
 - `sample-amazon-nova-sonic-twilio-integration/src/server.ts` (Twilio outbound + Media Stream)
@@ -743,7 +775,7 @@ Each phase is independently deployable and testable. After completing each phase
 - [x] **Phase 1**: Local Docker run + WebSocket client → verify state transitions + ECS deploy verified healthy
 - [x] **Phase 2**: Trigger incident → verify metrics spike + RCA output in logs (verified via Docker + WS integration test)
 - [x] **Phase 3**: Docker integration test → incident loop through CALLING, audio_input handled, tools execute (84 unit tests pass). Live voice requires browser mic + Bedrock connection (ECS has IAM access)
-- [ ] **Phase 4**: Real phone call → verify audio quality + tool execution
+- [x] **Phase 4**: Twilio call places, Media Stream connects, Nova Sonic session starts. Full voice conversation pending (Nova Sonic greeting tuning). 101 unit tests pass.
 - [ ] **Phase 5**: AgentCore deployment → verify identical behavior to Mode B
 - [ ] **Phase 6**: Full loop timing → verify < 3 minutes end-to-end
 - [ ] **Regression**: Reset at any phase → verify clean return to HEALTHY
