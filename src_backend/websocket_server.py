@@ -121,6 +121,9 @@ async def handle_client_message(data: str) -> None:
             await broadcast_phase_change(demo_state)
 
     elif msg_type == "reset_demo":
+        from voice.voice_router import voice_router
+        await voice_router.stop_session()
+        await _cancel_inflight_twilio_call()
         demo_state.reset()
         await manager.broadcast(build_system_status(demo_state))
         await manager.broadcast({
@@ -147,7 +150,7 @@ async def handle_client_message(data: str) -> None:
 
     elif msg_type == "audio_input":
         audio = payload.get("audio", "")
-        if audio and demo_state.phase == Phase.CALLING:
+        if audio and demo_state.phase == Phase.CALLING and demo_state.voice_mode == "mode_c":
             from voice.voice_router import voice_router
             if not voice_router.active:
                 await _start_voice_session()
@@ -192,6 +195,27 @@ async def _start_voice_session() -> None:
         on_transcript=on_transcript,
         on_session_end=on_session_end,
     )
+
+
+async def _cancel_inflight_twilio_call() -> None:
+    """Hang up any in-flight Twilio call when demo resets."""
+    try:
+        from voice.voice_router import voice_router
+        twilio_session = voice_router.twilio_session
+        if twilio_session and twilio_session.call_sid:
+            import asyncio
+            from shared.config import load_twilio_credentials
+            account_sid, auth_token, _ = load_twilio_credentials()
+            if account_sid and auth_token:
+                from twilio.rest import Client
+                client = Client(account_sid, auth_token)
+                await asyncio.to_thread(
+                    client.calls(twilio_session.call_sid).update,
+                    status="completed",
+                )
+                logger.info(f"Cancelled in-flight Twilio call: {twilio_session.call_sid}")
+    except Exception as e:
+        logger.warning(f"Failed to cancel Twilio call on reset: {e}")
 
 
 def configure_voice_router_url(host: str, scheme: str = "wss") -> None:

@@ -44,9 +44,8 @@ async def place_outbound_call(to_number: str, media_stream_url: str) -> str | No
         '<?xml version="1.0" encoding="UTF-8"?>'
         "<Response>"
         '<Say language="en-US" voice="Polly.Matthew-Generative">'
-        "Please wait while we connect your call to the AI Operations Center."
+        "Connecting to AI Operations."
         "</Say>"
-        '<Pause length="1"/>'
         "<Connect>"
         f'<Stream url="{media_stream_url}" />'
         "</Connect>"

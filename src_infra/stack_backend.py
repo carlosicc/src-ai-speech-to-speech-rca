@@ -134,7 +134,7 @@ class BackendStack(Stack):
                 "DEFAULT_VOICE_MODE": "mode_c",
                 "BEDROCK_REGION": bedrock_config.get("region", "eu-west-1"),
                 "BEDROCK_MODEL_ID": bedrock_config.get("models", {}).get("standard", {}).get(
-                    "model_id", "eu.anthropic.claude-sonnet-4-6"
+                    "model_id", "eu.anthropic.claude-sonnet-4-6-20250514-v1:0"
                 ),
                 "NOVA_SONIC_MODEL_ID": bedrock_config.get("models", {}).get("voice", {}).get(
                     "model_id", "amazon.nova-sonic-v1:0"

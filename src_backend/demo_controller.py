@@ -2,7 +2,7 @@ import asyncio
 import logging
 
 from agents.diagnosis_agent import run_diagnosis
-from shared.config import INCIDENT_LOOP_INTERVAL, VOICE_SESSION_TIMEOUT
+from shared.config import INCIDENT_LOOP_INTERVAL, VOICE_SESSION_TIMEOUT, TWILIO_CALLING_TIMEOUT
 from shared.state import Phase, demo_state
 from websocket_server import broadcast_phase_change, build_system_status, manager
 
@@ -132,8 +132,9 @@ class DemoController:
                 "payload": {"message": "Waiting for on-call DBA to connect (click Start Mic)...", "level": "info"},
             })
 
+        timeout = TWILIO_CALLING_TIMEOUT if voice_mode in ("mode_a", "mode_b") else VOICE_SESSION_TIMEOUT
         elapsed = 0.0
-        while demo_state.phase == Phase.CALLING and elapsed < VOICE_SESSION_TIMEOUT:
+        while demo_state.phase == Phase.CALLING and elapsed < timeout:
             await asyncio.sleep(1.0)
             elapsed += 1.0
 

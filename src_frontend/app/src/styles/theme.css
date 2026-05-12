@@ -198,10 +198,12 @@ html, body, #root {
 }
 
 .dev-panel-buttons button.active {
-  background: rgba(38, 198, 218, 0.35);
+  background: rgba(38, 198, 218, 0.45);
   border-color: var(--accent-cyan);
+  border-width: 2px;
   color: var(--accent-cyan);
-  box-shadow: 0 0 6px rgba(38, 198, 218, 0.3);
+  font-weight: bold;
+  box-shadow: 0 0 8px rgba(38, 198, 218, 0.5), inset 0 0 4px rgba(38, 198, 218, 0.2);
 }
 
 .dev-panel-buttons button:disabled {

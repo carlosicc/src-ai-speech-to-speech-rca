@@ -5,6 +5,12 @@ import { send } from "@/lib/websocket";
 import { startAudioCapture, stopAudioCapture } from "@/lib/audioHandler";
 import { ROOMS } from "@/engine/config";
 
+const VOICE_MODE_TOOLTIPS: Record<string, string> = {
+  mode_a: "AgentCore + Twilio (managed agent, real phone call)",
+  mode_b: "Bedrock + Twilio (direct stream, real phone call)",
+  mode_c: "Bedrock + Browser (mic/speaker, no phone)",
+};
+
 export function DevPanel() {
   const [visible, setVisible] = useState(false);
   const state = useSceneStore((s) => s.state);
@@ -35,6 +41,11 @@ export function DevPanel() {
   if (!visible) return null;
 
   const handleVoiceModeChange = (mode: string) => {
+    if (micActive) {
+      stopAudioCapture();
+      setMicActive(false);
+      send({ type: "stop_voice", payload: {} });
+    }
     setVoiceMode(mode);
     send({ type: "set_voice_mode", payload: { mode } });
   };
@@ -58,6 +69,8 @@ export function DevPanel() {
     }
   };
 
+  const micDisabled = voiceMode !== "mode_c" || (state !== "CALLING" && !micActive);
+
   return (
     <div className="dev-panel">
       <div className="dev-panel-header">
@@ -79,6 +92,7 @@ export function DevPanel() {
               key={r.id}
               onClick={() => triggerIncident(r.id)}
               disabled={state !== "HEALTHY"}
+              title={`Manually start an incident on ${r.label}`}
             >
               {r.label}
             </button>
@@ -88,8 +102,14 @@ export function DevPanel() {
       <div className="dev-panel-section">
         <label>CONTROL:</label>
         <div className="dev-panel-buttons">
-          <button onClick={reset}>Reset</button>
-          <button onClick={() => setAutoAdvance(!autoAdvance)}>
+          <button onClick={reset} title="Stop current incident, return to HEALTHY">
+            Reset
+          </button>
+          <button
+            onClick={() => setAutoAdvance(!autoAdvance)}
+            title="Auto-trigger incidents every 3min for booth passersby"
+            className={autoAdvance ? "active" : ""}
+          >
             Auto: {autoAdvance ? "ON" : "OFF"}
           </button>
         </div>
@@ -97,11 +117,12 @@ export function DevPanel() {
       <div className="dev-panel-section">
         <label>VOICE MODE:</label>
         <div className="dev-panel-buttons">
-          {["mode_a", "mode_b", "mode_c"].map((mode) => (
+          {(["mode_a", "mode_b", "mode_c"] as const).map((mode) => (
             <button
               key={mode}
               onClick={() => handleVoiceModeChange(mode)}
               className={voiceMode === mode ? "active" : ""}
+              title={VOICE_MODE_TOOLTIPS[mode]}
             >
               {mode.replace("_", " ").toUpperCase()}
             </button>
@@ -117,7 +138,9 @@ export function DevPanel() {
             onChange={(e) => setPhoneNumber(e.target.value)}
             placeholder="+44..."
           />
-          <button onClick={handlePhoneSubmit}>Set</button>
+          <button onClick={handlePhoneSubmit} title="Send phone number to backend for Twilio calls">
+            Set
+          </button>
         </div>
       </div>
       <div className="dev-panel-section">
@@ -126,7 +149,8 @@ export function DevPanel() {
           <button
             onClick={handleMicToggle}
             className={micActive ? "active" : ""}
-            disabled={state !== "CALLING" && !micActive}
+            disabled={micDisabled}
+            title="Activate browser microphone for voice conversation (Mode C only)"
           >
             {micActive ? "Stop Mic" : "Start Mic"}
           </button>
