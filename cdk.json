@@ -57,6 +57,9 @@
       "twilio": {
         "secret_name": "rca/twilio/credentials",
         "secret_arn": "arn:aws:secretsmanager:eu-west-1:000000000000:secret:rca-secret-twilio-000000000000-eu-west-1-dev01-XXXXXX"
+      },
+      "agentcore": {
+        "runtime_arn": "arn:aws:bedrock-agentcore:eu-west-1:000000000000:runtime/rca_voice_agent_dev01-XXXXXXXXXX"
       }
     },
     "prod": {

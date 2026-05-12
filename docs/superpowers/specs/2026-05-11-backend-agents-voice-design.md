@@ -1,7 +1,7 @@
 # Backend: Agents, Voice & Demo Loop
 
 **Date**: 2026-05-12
-**Status**: In Progress — Phase 4 Complete (Twilio Integration), Phase 5 Next
+**Status**: In Progress — Phases 1-5 Complete, Phase 6 Next (Master Agent Orchestration)
 **Author**: Carlos / Claude
 
 ---
@@ -690,26 +690,77 @@ Each phase is independently deployable and testable. After completing each phase
 **Goal**: Voice agent runs on AgentCore as a BidiAgent, Twilio audio bridges to it.
 
 **Deliverables:**
-- [ ] AgentCore agent code (separate directory for container): `src_backend/voice/agentcore_agent/`
-  - `agent.py` — BidiAgent with tools
-  - `Dockerfile`
-  - `requirements.txt`
-- [ ] `src_backend/voice/mode_a_agentcore.py` — Twilio audio ↔ AgentCore WebSocket bridge
-- [ ] CDK: AgentCore Runtime resource (`CfnRuntime`) with `DockerImageAsset`
-- [ ] CDK: IAM roles for AgentCore (Bedrock invoke, DynamoDB read)
-- [ ] CDK: Cognito or SigV4 signing for AgentCore WebSocket endpoint
-- [ ] Voice router updated to dispatch Mode A
+- [x] AgentCore agent code (separate directory for container): `src_backend/voice/agentcore_agent/`
+  - `agent.py` — BidiAgent with tools (FastAPI + Strands BidiNovaSonicModel)
+  - `tools.py` — authenticate_user, restart_database, check_service_health
+  - `Dockerfile` — ARM64 container with portaudio19-dev for strands.experimental.bidi
+  - `requirements.txt` — strands-agents, fastapi, uvicorn, websockets
+- [x] `src_backend/voice/mode_a_agentcore.py` — Twilio audio ↔ AgentCore SigV4 WebSocket bridge
+- [x] `src_backend/voice/audio_converter.py` — Added 8kHz ↔ 16kHz resampling (AgentCore uses 16kHz, not 24kHz)
+- [x] CDK: `src_infra/stack_agentcore.py` — IAM role + ECR DockerImageAsset (ARM64)
+- [x] CDK: IAM role `rca-agentcore-role-dev01` with Bedrock invoke + ECR pull + CloudWatch logs
+- [x] AgentCore Runtime created via API (not CFN — see note below)
+- [x] Voice router updated to dispatch Mode A with fallback to Mode B when ARN not configured
+- [x] `cdk.json` updated with `agentcore.runtime_arn` in dev01 context
+- [x] Backend ECS env var `AGENTCORE_RUNTIME_ARN` set from CDK context
 
 **Success criteria:**
-- AgentCore Runtime deploys and shows ACTIVE status
-- Mode A selected → Twilio call places → audio routes through AgentCore
-- BidiAgent handles conversation + tools identically to Mode B
-- Fallback: if AgentCore endpoint unhealthy, UI shows warning, user can switch to Mode B
+- [x] AgentCore Runtime deploys and shows READY status
+- [x] Endpoint `default` created and READY
+- [x] Mode A selected → voice router creates AgentCoreVoiceSession
+- [x] Fallback: if ARN empty, falls back to Mode B (Twilio direct) or Mode C (browser)
+- [ ] Live test: Mode A call places → audio routes through AgentCore → BidiAgent responds
+- [ ] BidiAgent handles conversation + tools identically to Mode B
+
+**Verification (2026-05-12):**
+- 49 unit tests pass (14 Phase 5 + 17 Phase 4 UX + 18 Phase 4)
+- CDK deploy succeeded for all 4 stacks (Infrastructure, Backend, AgentCore, Frontend)
+- AgentCore Runtime: `rca_voice_agent_dev01-XXXXXXXXXX` — status READY
+- AgentCore Endpoint: `default` — status READY
+- Backend ECS container has `AGENTCORE_RUNTIME_ARN` env var set
+- Mode A fallback to Mode B verified when ARN empty
+- Audio converter 8kHz ↔ 16kHz roundtrip verified (lossless on downsampled path)
+- BidiAgent container image pushed to ECR (ARM64)
+
+**Key implementation decisions:**
+- **AgentCore is NOT CDK-friendly** — `AWS::BedrockAgentCore::Runtime` CFN resource fails validation (`ContainerConfiguration` unsupported property). The `aws_cdk.aws_bedrock_agentcore_alpha` construct is not available in the installed CDK version.
+- **Hybrid deployment approach:**
+  1. CDK manages: IAM role, container image (ECR via DockerImageAsset ARM64)
+  2. API manages: Runtime creation + endpoint via `bedrock-agentcore` API/MCP tools
+  3. `cdk.json` stores the runtime ARN for the backend ECS stack to read
+- **Container must be ARM64** — AgentCore only supports arm64 architecture (AMD64 rejected)
+- **AgentCore uses 16kHz audio** (not 24kHz like direct Bedrock Nova Sonic) — added separate resample functions
+- **SigV4 presigned WebSocket URL** built in `mode_a_agentcore.py` for ECS → AgentCore connection
+- **BidiAgent protocol**: JSON events with `type` field (bidi_audio_input, bidi_audio_output, bidi_text_output, bidi_session_start, etc.)
+- **`bidi_session_start` event** triggers agent to speak first (outbound call pattern)
+- Voice router checks `AGENTCORE_RUNTIME_ARN` at runtime (not import time) for testability
+
+**Deployed resources:**
+- AgentCore Runtime ARN: `arn:aws:bedrock-agentcore:eu-west-1:000000000000:runtime/rca_voice_agent_dev01-XXXXXXXXXX`
+- AgentCore Endpoint: `default` (READY)
+- IAM Role: `rca-agentcore-role-dev01`
+- Container: `000000000000.dkr.ecr.eu-west-1.amazonaws.com/cdk-hnb659fds-container-assets-000000000000-eu-west-1:7834dba9...` (ARM64)
+- CDK Stack: `RcaAgentCoreStack-dev01`
+
+**To update the AgentCore Runtime (when agent code changes):**
+```bash
+# 1. Rebuild & push image via CDK
+cdk deploy RcaAgentCoreStack-dev01
+
+# 2. Update runtime with new image URI (from CDK output)
+# Use MCP tool: mcp__bedrock-agentcore-mcp-server__update_agent_runtime
+# Or AWS CLI: aws bedrock-agentcore update-agent-runtime ...
+```
+
+**Remaining for full Mode A live test:**
+- Invoke Mode A in the DevPanel during CALLING phase
+- Verify Twilio call places, audio bridges through AgentCore, BidiAgent responds
+- May need to grant AgentCore role additional permissions if tools need DynamoDB access
 
 **Reference patterns:**
 - `sample-Nova-Sonic-AgentCore-Healthcare-Call-Center/backend/agent.py` (BidiAgent setup)
-- `sample-Nova-Sonic-AgentCore-Healthcare-Call-Center/infrastructure/` (CfnRuntime CDK)
-- `sample-nova-sonic-websocket-agentcore/cdk/lib/runtime-stack.ts` (AgentCore CDK in TS)
+- `sample-Nova-Sonic-AgentCore-Healthcare-Call-Center/infrastructure/cdk_constructs/agentcore_construct.py` (alpha construct)
+- `sample-Nova-Sonic-AgentCore-Healthcare-Call-Center/frontend/src/lib/websocket/AgentCoreWebSocketManager.ts` (SigV4 WS)
 
 ---
 
@@ -776,6 +827,7 @@ Each phase is independently deployable and testable. After completing each phase
 - [x] **Phase 2**: Trigger incident → verify metrics spike + RCA output in logs (verified via Docker + WS integration test)
 - [x] **Phase 3**: Docker integration test → incident loop through CALLING, audio_input handled, tools execute (84 unit tests pass). Live voice requires browser mic + Bedrock connection (ECS has IAM access)
 - [x] **Phase 4**: Twilio call places, Media Stream connects, Nova Sonic session starts. Full voice conversation pending (Nova Sonic greeting tuning). 101 unit tests pass.
-- [ ] **Phase 5**: AgentCore deployment → verify identical behavior to Mode B
+- [x] **Phase 4 UX Fixes**: 7 issues fixed (mic gating, audio_input safety, Twilio timeout, latency reduction, model ID, button styles, tooltips). 17 new tests. Deployed 2026-05-12.
+- [x] **Phase 5**: AgentCore Runtime READY, endpoint READY, Mode A client deployed to ECS with ARN. 14 new tests. Live Twilio→AgentCore audio bridge pending manual verification.
 - [ ] **Phase 6**: Full loop timing → verify < 3 minutes end-to-end
 - [ ] **Regression**: Reset at any phase → verify clean return to HEALTHY

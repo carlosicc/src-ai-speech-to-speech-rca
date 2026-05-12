@@ -2,6 +2,7 @@ import logging
 from typing import Any, Callable, Coroutine
 
 from shared.state import demo_state
+from voice.mode_a_agentcore import AgentCoreVoiceSession
 from voice.mode_b_direct_twilio import TwilioVoiceSession
 from voice.mode_c_browser import BrowserVoiceSession
 
@@ -12,6 +13,7 @@ class VoiceRouter:
     def __init__(self) -> None:
         self._browser_session: BrowserVoiceSession | None = None
         self._twilio_session: TwilioVoiceSession | None = None
+        self._agentcore_session: AgentCoreVoiceSession | None = None
         self._media_stream_url: str = ""
 
     @property
@@ -20,6 +22,8 @@ class VoiceRouter:
             return self._browser_session.active
         if self._twilio_session:
             return self._twilio_session.active
+        if self._agentcore_session:
+            return self._agentcore_session.active
         return False
 
     def set_media_stream_url(self, url: str) -> None:
@@ -52,8 +56,26 @@ class VoiceRouter:
             await self._start_browser_session(on_audio_output, on_transcript, on_session_end)
 
         elif mode == "mode_a":
-            logger.warning("Mode A (AgentCore) not yet implemented, falling back to Mode C")
-            await self._start_browser_session(on_audio_output, on_transcript, on_session_end)
+            from shared.config import AGENTCORE_RUNTIME_ARN
+            if not AGENTCORE_RUNTIME_ARN:
+                logger.warning("Mode A: AGENTCORE_RUNTIME_ARN not configured, falling back to Mode B")
+                if self._media_stream_url:
+                    self._twilio_session = TwilioVoiceSession(
+                        on_transcript=on_transcript,
+                        on_session_end=on_session_end,
+                        media_stream_url=self._media_stream_url,
+                    )
+                    await self._twilio_session.start()
+                else:
+                    await self._start_browser_session(on_audio_output, on_transcript, on_session_end)
+                return
+            logger.info("Voice router: starting Mode A (AgentCore BidiAgent + Twilio)")
+            self._agentcore_session = AgentCoreVoiceSession(
+                on_transcript=on_transcript,
+                on_session_end=on_session_end,
+                media_stream_url=self._media_stream_url,
+            )
+            await self._agentcore_session.start()
 
         else:
             logger.error(f"Unknown voice mode: {mode}")
@@ -82,11 +104,18 @@ class VoiceRouter:
         if self._twilio_session:
             await self._twilio_session.stop()
             self._twilio_session = None
+        if self._agentcore_session:
+            await self._agentcore_session.stop()
+            self._agentcore_session = None
         logger.info("Voice router: session stopped")
 
     @property
     def twilio_session(self) -> TwilioVoiceSession | None:
         return self._twilio_session
+
+    @property
+    def agentcore_session(self) -> AgentCoreVoiceSession | None:
+        return self._agentcore_session
 
 
 voice_router = VoiceRouter()

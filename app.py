@@ -6,6 +6,7 @@ import aws_cdk as cdk
 from src_infra.stack_infrastructure import InfrastructureStack
 from src_infra.stack_backend import BackendStack
 from src_infra.stack_frontend import FrontendStack
+from src_infra.stack_agentcore import AgentCoreStack
 
 app = cdk.App()
 
@@ -42,7 +43,15 @@ stack_backend = BackendStack(
 )
 stack_backend.add_dependency(stack_infrastructure)
 
-# 3. Frontend stack (S3 + CloudFront — pending public access confirmation)
+# 3. AgentCore stack (BidiAgent voice agent runtime)
+stack_agentcore = AgentCoreStack(
+    app, f"RcaAgentCoreStack-{env_name}",
+    infrastructure=stack_infrastructure,
+    **common_props,
+)
+stack_agentcore.add_dependency(stack_infrastructure)
+
+# 4. Frontend stack (S3 + CloudFront — pending public access confirmation)
 stack_frontend = FrontendStack(
     app, f"RcaFrontendStack-{env_name}", **common_props
 )

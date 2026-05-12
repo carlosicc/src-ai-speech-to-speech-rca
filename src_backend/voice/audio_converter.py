@@ -98,6 +98,36 @@ def resample_24k_to_8k(pcm_24k: bytes) -> bytes:
     return struct.pack(f"<{len(samples_out)}h", *samples_out)
 
 
+def resample_8k_to_16k(pcm_8k: bytes) -> bytes:
+    """Upsample PCM 16-bit from 8kHz to 16kHz using linear interpolation (2x)."""
+    num_samples = len(pcm_8k) // 2
+    if num_samples < 2:
+        return pcm_8k
+    samples_in = struct.unpack(f"<{num_samples}h", pcm_8k)
+    samples_out: list[int] = []
+
+    for i in range(num_samples - 1):
+        s0 = samples_in[i]
+        s1 = samples_in[i + 1]
+        samples_out.append(s0)
+        samples_out.append((s0 + s1) // 2)
+
+    samples_out.append(samples_in[-1])
+    samples_out.append(samples_in[-1])
+
+    return struct.pack(f"<{len(samples_out)}h", *samples_out)
+
+
+def resample_16k_to_8k(pcm_16k: bytes) -> bytes:
+    """Downsample PCM 16-bit from 16kHz to 8kHz (pick every 2nd sample)."""
+    num_samples = len(pcm_16k) // 2
+    if num_samples < 2:
+        return pcm_16k
+    samples_in = struct.unpack(f"<{num_samples}h", pcm_16k)
+    samples_out = [samples_in[i] for i in range(0, num_samples, 2)]
+    return struct.pack(f"<{len(samples_out)}h", *samples_out)
+
+
 def twilio_to_nova(mulaw_8k_base64_payload: bytes) -> str:
     """Full pipeline: mulaw 8kHz bytes → PCM 24kHz base64 string for Nova Sonic."""
     import base64

@@ -1,8 +1,8 @@
 # Phase 4 UX Issues — Mode B Demo Experience
 
 **Date**: 2026-05-12
-**Status**: Open — needs fixing before Summit demo
-**Priority**: High
+**Status**: RESOLVED — all 7 issues fixed and deployed (2026-05-12)
+**Priority**: High (resolved)
 
 ---
 

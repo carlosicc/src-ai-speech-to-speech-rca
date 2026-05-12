@@ -30,6 +30,8 @@ VOICE_SESSION_TIMEOUT: int = get_env_int("VOICE_SESSION_TIMEOUT", 90)
 TWILIO_CALLING_TIMEOUT: int = get_env_int("TWILIO_CALLING_TIMEOUT", 45)
 DDB_TABLE_NAME: str = get_env("DDB_TABLE_NAME", "")
 TWILIO_SECRET_ARN: str = get_env("TWILIO_SECRET_ARN", "")
+AGENTCORE_RUNTIME_ARN: str = get_env("AGENTCORE_RUNTIME_ARN", "")
+AGENTCORE_REGION: str = get_env("AGENTCORE_REGION", "us-east-1")
 
 
 def load_twilio_credentials() -> tuple[str, str, str]:

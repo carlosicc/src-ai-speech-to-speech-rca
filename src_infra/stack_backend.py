@@ -144,6 +144,10 @@ class BackendStack(Stack):
                 "VOICE_SESSION_TIMEOUT": "90",
                 "DDB_TABLE_NAME": infrastructure.main_table.table_name,
                 "TWILIO_SECRET_ARN": twilio_secret_arn,
+                "AGENTCORE_RUNTIME_ARN": env_context.get("agentcore", {}).get(
+                    "runtime_arn", ""
+                ),
+                "AGENTCORE_REGION": env_context.get("region", "eu-west-1"),
             },
             health_check=ecs.HealthCheck(
                 command=["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"],
