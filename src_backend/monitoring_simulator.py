@@ -85,23 +85,28 @@ class MonitoringSimulator:
 
     async def _loop(self) -> None:
         while True:
-            await asyncio.sleep(METRICS_INTERVAL)
-            if self._broadcast_fn is None:
-                continue
-            incident_service = None
-            if demo_state.incident and demo_state.phase not in (Phase.HEALTHY, Phase.RESOLVED):
-                incident_service = demo_state.incident.service
-            metrics = generate_metrics(incident_service)
-            for m in metrics:
-                await self._broadcast_fn({
-                    "type": "metrics_update",
-                    "payload": {
-                        "service": m.service,
-                        "cpu": m.cpu,
-                        "mem": m.mem,
-                        "iops": m.iops,
-                    },
-                })
+            try:
+                await asyncio.sleep(METRICS_INTERVAL)
+                if self._broadcast_fn is None:
+                    continue
+                incident_service = None
+                if demo_state.incident and demo_state.phase not in (Phase.HEALTHY, Phase.RESOLVED):
+                    incident_service = demo_state.incident.service
+                metrics = generate_metrics(incident_service)
+                for m in metrics:
+                    await self._broadcast_fn({
+                        "type": "metrics_update",
+                        "payload": {
+                            "service": m.service,
+                            "cpu": m.cpu,
+                            "mem": m.mem,
+                            "iops": m.iops,
+                        },
+                    })
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                logger.error(f"Monitoring loop error: {e}")
 
 
 monitoring_simulator = MonitoringSimulator()

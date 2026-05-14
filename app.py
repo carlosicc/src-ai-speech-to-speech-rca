@@ -51,10 +51,9 @@ stack_agentcore = AgentCoreStack(
 )
 stack_agentcore.add_dependency(stack_infrastructure)
 
-# 4. Frontend stack (S3 + CloudFront — pending public access confirmation)
+# 4. Frontend stack (S3 + CloudFront)
 stack_frontend = FrontendStack(
     app, f"RcaFrontendStack-{env_name}", **common_props
 )
-stack_frontend.add_dependency(stack_backend)
 
 app.synth()

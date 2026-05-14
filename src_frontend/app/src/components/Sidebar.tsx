@@ -13,9 +13,17 @@ const AGENT_MESSAGES: Record<SceneState, string> = {
   RESOLVED: "✓ Incident resolved. All systems nominal.",
 };
 
+const AGENT_LABELS: Record<string, string> = {
+  master: "Master Agent",
+  diagnosis: "Diagnosis Agent",
+  voice: "Voice Agent",
+};
+
 export function Sidebar() {
   const state = useSceneStore((s) => s.state);
   const affectedService = useSceneStore((s) => s.affectedService);
+  const activeAgent = useSceneStore((s) => s.activeAgent);
+  const agentStatus = useSceneStore((s) => s.agentStatus);
 
   const isActive = state !== "HEALTHY";
 
@@ -55,6 +63,23 @@ export function Sidebar() {
           <span>{isActive ? state.replace("_", " ") : "Idle"}</span>
         </div>
         <p className="agent-message">{AGENT_MESSAGES[state]}</p>
+
+        {isActive && (
+          <div className="agent-roster">
+            {(["master", "diagnosis", "voice"] as const).map((agent) => {
+              const isCurrent = activeAgent === agent;
+              return (
+                <div key={agent} className={`agent-chip${isCurrent ? " agent-chip--active" : ""}`}>
+                  <span className={`agent-chip-dot${isCurrent ? " agent-chip-dot--active" : ""}`} />
+                  <span className="agent-chip-label">{AGENT_LABELS[agent]}</span>
+                  {isCurrent && agentStatus && (
+                    <span className="agent-chip-status">{agentStatus}</span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </section>
 
       <AgentLog />

@@ -241,7 +241,7 @@ class TestCdkAgentCoreStack:
                     "region": "eu-west-1",
                     "models": {
                         "voice": {"model_id": "amazon.nova-sonic-v1:0"},
-                        "standard": {"model_id": "eu.anthropic.claude-sonnet-4-6-20250514-v1:0"},
+                        "standard": {"model_id": "eu.anthropic.claude-sonnet-4-6"},
                     },
                 },
             }

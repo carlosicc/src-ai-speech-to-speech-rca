@@ -20,7 +20,10 @@ class ConnectionManager:
         logger.info(f"Client connected. Total: {len(self.active_connections)}")
 
     def disconnect(self, websocket: WebSocket) -> None:
-        self.active_connections.remove(websocket)
+        try:
+            self.active_connections.remove(websocket)
+        except ValueError:
+            pass
         logger.info(f"Client disconnected. Total: {len(self.active_connections)}")
 
     async def broadcast(self, message: dict[str, Any]) -> None:
@@ -34,7 +37,10 @@ class ConnectionManager:
             except Exception:
                 disconnected.append(connection)
         for conn in disconnected:
-            self.active_connections.remove(conn)
+            try:
+                self.active_connections.remove(conn)
+            except ValueError:
+                pass
 
 
 manager = ConnectionManager()
@@ -53,6 +59,7 @@ def build_system_status(state: DemoState) -> dict[str, Any]:
             "phase": state.phase.value,
             "voice_mode": state.voice_mode,
             "auto_advance": state.auto_advance,
+            "active_agent": state.active_agent,
         },
     }
 
@@ -121,7 +128,9 @@ async def handle_client_message(data: str) -> None:
             await broadcast_phase_change(demo_state)
 
     elif msg_type == "reset_demo":
+        from demo_controller import demo_controller
         from voice.voice_router import voice_router
+        await demo_controller.cancel_simulation()
         await voice_router.stop_session()
         await _cancel_inflight_twilio_call()
         demo_state.reset()

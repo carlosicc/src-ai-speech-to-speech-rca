@@ -5,12 +5,13 @@ from pathlib import Path
 from typing import AsyncGenerator
 
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
-from fastapi.responses import Response
+from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from demo_controller import demo_controller
 from monitoring_simulator import monitoring_simulator
-from shared.config import WS_PORT
+from shared.config import API_TOKEN, WS_PORT
 from shared.state import Phase, demo_state
 from websocket_server import (
     broadcast_phase_change,
@@ -42,6 +43,23 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
 app = FastAPI(lifespan=lifespan)
 
+OPEN_PATHS = {"/health", "/twilio/outbound-call"}
+
+
+class TokenAuthMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        if not API_TOKEN:
+            return await call_next(request)
+        if request.url.path in OPEN_PATHS:
+            return await call_next(request)
+        token = request.query_params.get("token") or request.headers.get("x-api-token")
+        if token != API_TOKEN:
+            return JSONResponse(status_code=403, content={"error": "forbidden"})
+        return await call_next(request)
+
+
+app.add_middleware(TokenAuthMiddleware)
+
 
 @app.get("/health")
 async def health() -> dict[str, str]:
@@ -53,6 +71,12 @@ _voice_url_configured = False
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket) -> None:
+    if API_TOKEN:
+        token = websocket.query_params.get("token")
+        if token != API_TOKEN:
+            await websocket.close(code=4003, reason="forbidden")
+            return
+
     global _voice_url_configured
     await manager.connect(websocket)
 

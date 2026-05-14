@@ -9,12 +9,15 @@ interface SceneStore {
   affectedService: string | null;
   autoAdvance: boolean;
   connected: boolean;
+  activeAgent: string | null;
+  agentStatus: string | null;
   triggerIncident: (service: string) => void;
   advancePhase: () => void;
   reset: () => void;
   setAutoAdvance: (enabled: boolean) => void;
   setPhase: (phase: SceneState, service?: string | null) => void;
   setConnected: (connected: boolean) => void;
+  setActiveAgent: (agent: string | null, status: string | null) => void;
 }
 
 export const useSceneStore = create<SceneStore>((set, get) => ({
@@ -22,6 +25,8 @@ export const useSceneStore = create<SceneStore>((set, get) => ({
   affectedService: null,
   autoAdvance: true,
   connected: false,
+  activeAgent: null,
+  agentStatus: null,
 
   triggerIncident: (service: string) => {
     send({ type: "trigger_incident", payload: { service } });
@@ -51,10 +56,15 @@ export const useSceneStore = create<SceneStore>((set, get) => ({
   setConnected: (connected: boolean) => {
     set({ connected });
   },
+
+  setActiveAgent: (agent: string | null, status: string | null) => {
+    set({ activeAgent: agent, agentStatus: status });
+  },
 }));
 
 function handleWsMessage(message: WsMessage): void {
   const { type, payload } = message;
+  if (!payload) return;
 
   if (type === "system_status") {
     const phase = (payload.phase as SceneState) || "HEALTHY";
@@ -64,7 +74,16 @@ function handleWsMessage(message: WsMessage): void {
     if (payload.auto_advance !== undefined) {
       useSceneStore.setState({ autoAdvance: payload.auto_advance as boolean });
     }
+    if (payload.active_agent !== undefined) {
+      useSceneStore.getState().setActiveAgent(payload.active_agent as string | null, null);
+    }
     useSceneStore.getState().setConnected(true);
+  }
+
+  if (type === "agent_activity") {
+    const agent = payload.agent as string | null;
+    const status = payload.status as string | null;
+    useSceneStore.getState().setActiveAgent(agent, status);
   }
 
   if (type === "phase_update") {

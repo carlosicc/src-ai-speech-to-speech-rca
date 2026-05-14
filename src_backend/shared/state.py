@@ -44,6 +44,7 @@ class DemoState:
     voice_mode: str = DEFAULT_VOICE_MODE
     phone_number: str = DEFAULT_PHONE_NUMBER
     auto_advance: bool = True
+    active_agent: Optional[str] = None
 
     def trigger_incident(self, service: str = "aurora-db") -> Incident:
         self.incident = Incident(service=service)
@@ -63,6 +64,7 @@ class DemoState:
     def reset(self) -> None:
         self.phase = Phase.HEALTHY
         self.incident = None
+        self.active_agent = None
         logger.info("Demo state reset to HEALTHY")
 
 

@@ -26,7 +26,7 @@
             "use_cases": ["chat_responses", "simple_extraction"]
           },
           "standard": {
-            "model_id": "eu.anthropic.claude-sonnet-4-6-20250514-v1:0",
+            "model_id": "eu.anthropic.claude-sonnet-4-6",
             "description": "Balanced quality and speed",
             "use_cases": ["agent_tasks", "diagnosis"]
           },
@@ -53,14 +53,15 @@
         "enable_whatsapp": false,
         "enable_jira": false
       },
-      "nlb_cert_arn": "arn:aws:acm:eu-west-1:000000000000:certificate/00000000-6944-48a8-b3df-767c889ab2d2",
+      "nlb_cert_arn": "arn:aws:acm:eu-west-1:000000000000:certificate/00000000-0000-0000-0000-000000000001",
       "twilio": {
         "secret_name": "rca/twilio/credentials",
         "secret_arn": "arn:aws:secretsmanager:eu-west-1:000000000000:secret:rca-secret-twilio-000000000000-eu-west-1-dev01-XXXXXX"
       },
       "agentcore": {
         "runtime_arn": "arn:aws:bedrock-agentcore:eu-west-1:000000000000:runtime/rca_voice_agent_dev01-XXXXXXXXXX"
-      }
+      },
+      "api_token": "REDACTED_API_TOKEN"
     },
     "prod": {
       "project_name": "rca",

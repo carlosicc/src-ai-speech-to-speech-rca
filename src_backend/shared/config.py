@@ -22,7 +22,7 @@ INCIDENT_LOOP_INTERVAL: int = get_env_int("INCIDENT_LOOP_INTERVAL", 180)
 DEFAULT_PHONE_NUMBER: str = get_env("DEFAULT_PHONE_NUMBER", "+44XXXXXXXXXX")
 DEFAULT_VOICE_MODE: str = get_env("DEFAULT_VOICE_MODE", "mode_c")
 BEDROCK_REGION: str = get_env("BEDROCK_REGION", "eu-west-1")
-BEDROCK_MODEL_ID: str = get_env("BEDROCK_MODEL_ID", "eu.anthropic.claude-sonnet-4-6-20250514-v1:0")
+BEDROCK_MODEL_ID: str = get_env("BEDROCK_MODEL_ID", "eu.anthropic.claude-sonnet-4-6")
 NOVA_SONIC_MODEL_ID: str = get_env("NOVA_SONIC_MODEL_ID", "amazon.nova-sonic-v1:0")
 NOVA_SONIC_REGION: str = get_env("NOVA_SONIC_REGION", "us-east-1")
 VOICE_PASSPHRASE: str = get_env("VOICE_PASSPHRASE", "REDACTED_PASSPHRASE")
@@ -32,6 +32,7 @@ DDB_TABLE_NAME: str = get_env("DDB_TABLE_NAME", "")
 TWILIO_SECRET_ARN: str = get_env("TWILIO_SECRET_ARN", "")
 AGENTCORE_RUNTIME_ARN: str = get_env("AGENTCORE_RUNTIME_ARN", "")
 AGENTCORE_REGION: str = get_env("AGENTCORE_REGION", "us-east-1")
+API_TOKEN: str = get_env("API_TOKEN", "")
 
 
 def load_twilio_credentials() -> tuple[str, str, str]:

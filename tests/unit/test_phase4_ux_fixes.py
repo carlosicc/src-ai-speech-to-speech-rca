@@ -168,12 +168,12 @@ class TestIssue4_ReducedLatency:
 
 
 class TestIssue5_ModelId:
-    """Issue 5: BEDROCK_MODEL_ID default is the full model ID."""
+    """Issue 5: BEDROCK_MODEL_ID default uses EU inference profile."""
 
-    def test_default_model_id_is_full(self):
+    def test_default_model_id_is_inference_profile(self):
         from shared.config import BEDROCK_MODEL_ID
-        assert "v1:0" in BEDROCK_MODEL_ID or "v1" in BEDROCK_MODEL_ID
-        assert BEDROCK_MODEL_ID == "eu.anthropic.claude-sonnet-4-6-20250514-v1:0"
+        assert "anthropic.claude-sonnet" in BEDROCK_MODEL_ID
+        assert BEDROCK_MODEL_ID == "eu.anthropic.claude-sonnet-4-6"
 
     def test_cdk_model_id_matches(self):
         import json
@@ -181,7 +181,7 @@ class TestIssue5_ModelId:
         with open(cdk_path) as f:
             cdk = json.load(f)
         model_id = cdk["context"]["dev01"]["bedrock"]["models"]["standard"]["model_id"]
-        assert model_id == "eu.anthropic.claude-sonnet-4-6-20250514-v1:0"
+        assert model_id == "eu.anthropic.claude-sonnet-4-6"
 
 
 class TestIssue6_VoiceModeState:

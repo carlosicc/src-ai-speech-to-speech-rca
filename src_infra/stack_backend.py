@@ -79,7 +79,7 @@ class BackendStack(Stack):
                 )
             )
 
-        # Bedrock invoke permission (eu-west-1 for text models, us-east-1 for Nova Sonic)
+        # Bedrock invoke permission — cross-region inference profiles route to multiple regions
         task_role.add_to_policy(
             iam.PolicyStatement(
                 actions=[
@@ -88,8 +88,8 @@ class BackendStack(Stack):
                     "bedrock:InvokeModelWithBidirectionalStream",
                 ],
                 resources=[
-                    f"arn:aws:bedrock:{bedrock_config.get('region', 'eu-west-1')}::foundation-model/*",
-                    "arn:aws:bedrock:us-east-1::foundation-model/*",
+                    "arn:aws:bedrock:*::foundation-model/*",
+                    f"arn:aws:bedrock:*:{self.account}:inference-profile/*",
                 ],
             )
         )
@@ -134,7 +134,7 @@ class BackendStack(Stack):
                 "DEFAULT_VOICE_MODE": "mode_c",
                 "BEDROCK_REGION": bedrock_config.get("region", "eu-west-1"),
                 "BEDROCK_MODEL_ID": bedrock_config.get("models", {}).get("standard", {}).get(
-                    "model_id", "eu.anthropic.claude-sonnet-4-6-20250514-v1:0"
+                    "model_id", "eu.anthropic.claude-sonnet-4-6"
                 ),
                 "NOVA_SONIC_MODEL_ID": bedrock_config.get("models", {}).get("voice", {}).get(
                     "model_id", "amazon.nova-sonic-v1:0"
@@ -148,6 +148,7 @@ class BackendStack(Stack):
                     "runtime_arn", ""
                 ),
                 "AGENTCORE_REGION": env_context.get("region", "eu-west-1"),
+                "API_TOKEN": env_context.get("api_token", ""),
             },
             health_check=ecs.HealthCheck(
                 command=["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"],
@@ -219,28 +220,6 @@ class BackendStack(Stack):
             ),
         )
 
-        # HTTP listener (80) — kept for health checks and fallback
-        listener = nlb.add_listener(
-            f"WsListener-{env_name}",
-            port=80,
-            protocol=elbv2.Protocol.TCP,
-        )
-
-        listener.add_targets(
-            f"WsTarget-{env_name}",
-            port=8080,
-            targets=[self.service],
-            target_group_name=f"{project_name}-tg-ws-pub-{env_name}",
-            health_check=elbv2.HealthCheck(
-                port="8080",
-                protocol=elbv2.Protocol.HTTP,
-                path="/health",
-                interval=Duration.seconds(30),
-                healthy_threshold_count=2,
-                unhealthy_threshold_count=3,
-            ),
-        )
-
         # Allow NLB to reach service (internet-facing NLB preserves client IPs)
         service_sg.add_ingress_rule(ec2.Peer.any_ipv4(), ec2.Port.tcp(8080))
 
@@ -251,5 +230,5 @@ class BackendStack(Stack):
         CfnOutput(self, "ClusterName", value=self.cluster.cluster_name)
         CfnOutput(self, "VpcId", value=self.vpc.vpc_id)
         CfnOutput(self, "NlbDns", value=nlb.load_balancer_dns_name)
-        CfnOutput(self, "WsUrl", value=f"ws://{nlb.load_balancer_dns_name}/ws")
+        CfnOutput(self, "WsUrl", value=f"wss://{nlb.load_balancer_dns_name}/ws")
         CfnOutput(self, "ServiceName", value=self.service.service_name)

@@ -42,6 +42,7 @@ export const useVoiceStore = create<VoiceStore>((set) => ({
 
 function handleVoiceMessages(message: WsMessage): void {
   const { type, payload } = message;
+  if (!payload) return;
 
   if (type === "audio_output") {
     const audio = payload.audio as string;

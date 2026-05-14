@@ -133,6 +133,7 @@ rca-agent-demo/
 ├── src_infra/                  ← CDK stacks + Lambda functions
 │   ├── stack_infrastructure.py ← DynamoDB, S3, Lambda Layer
 │   ├── stack_backend.py        ← ECS Fargate (agents, WebSocket)
+│   ├── stack_agentcore.py      ← AgentCore IAM + ECR image
 │   ├── stack_frontend.py       ← S3 + CloudFront
 │   ├── lambda_functions/       ← Lambda handlers by purpose
 │   └── lambda_layers/          ← Shared utilities (rca_utils)
@@ -170,6 +171,23 @@ rca-agent-demo/
 
 ---
 
+## Implementation Status (2026-05-13)
+
+All 6 backend phases are **deployed and operational**:
+
+| Phase | Status | Verified |
+|-------|--------|----------|
+| 1. WebSocket + Demo Controller | Complete | ECS healthy, 36s cycle |
+| 2. Monitoring Simulator + Diagnosis Agent | Complete | Live RCA via Claude Sonnet |
+| 3. Voice Mode C (Browser + Bedrock) | Complete | Full voice conversation e2e |
+| 4. Voice Mode B (Twilio + Bedrock) | Complete | Real phone call places |
+| 5. Voice Mode A (AgentCore) | Complete | Runtime READY, endpoint deployed |
+| 6. Master Agent Orchestration | Complete | Full SoP in 41s with LLM |
+
+**Demo loop timing:** 41 seconds (LLM master agent) / 101 seconds (fallback with voice timeout)
+
+---
+
 ## Quick Start
 
 ```bash
@@ -180,14 +198,16 @@ source .venv/bin/activate
 pip install -r requirements.txt
 
 # 3. Deploy infrastructure
-cdk deploy --all -c env=dev01
+npx --package=aws-cdk@latest cdk deploy --all
 
-# 4. Configure secrets & parameters
-python src_config/scripts/deploy_ssm_parameters.py --env dev01
+# 4. Configure secrets (Twilio)
 python src_config/scripts/deploy_secrets.py --env dev01
-python src_config/scripts/seed_demo_data.py --env dev01
 
-# 5. Start frontend dev server
+# 5. Access the demo
+# Via NLB: https://rca-nlb-ws-pub-dev01-XXXXXXXXXXXXXXXX.elb.eu-west-1.amazonaws.com
+# Via CloudFront: https://XXXXXXXXXXXX.cloudfront.net (demo/REDACTED_PASSWORD)
+
+# 6. Local frontend dev
 cd src_frontend/app && npm install && npm run dev
 ```
 

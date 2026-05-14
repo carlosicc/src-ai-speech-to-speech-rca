@@ -297,6 +297,57 @@ html, body, #root {
   flex-shrink: 0;
 }
 
+/* Agent Roster (active agent chips) */
+.agent-roster {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.agent-chip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text-secondary);
+}
+
+.agent-chip--active {
+  background: rgba(38, 198, 218, 0.12);
+  border-color: var(--accent-cyan);
+  color: var(--accent-cyan);
+}
+
+.agent-chip-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-secondary);
+  opacity: 0.4;
+}
+
+.agent-chip-dot--active {
+  background: var(--accent-cyan);
+  opacity: 1;
+  animation: pulse-fast 0.8s infinite;
+}
+
+.agent-chip-label {
+  font-size: 11px;
+}
+
+.agent-chip-status {
+  font-size: 10px;
+  opacity: 0.7;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
 /* Agent Log */
 .agent-log {
   max-height: 160px;

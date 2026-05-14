@@ -13,6 +13,8 @@ function MetricBar({ value, color }: { value: number; color: string }) {
   );
 }
 
+const IOPS_MAX = 5000;
+
 export function MetricsPanel() {
   const metrics = useMetricsStore((s) => s.metrics);
 
@@ -25,7 +27,7 @@ export function MetricsPanel() {
           if (!m) return null;
           const cpu = Math.round(m.cpu[m.cpu.length - 1]);
           const mem = Math.round(m.mem[m.mem.length - 1]);
-          const iops = Math.round(m.iops[m.iops.length - 1]);
+          const iops = Math.round((m.iops[m.iops.length - 1] / IOPS_MAX) * 100);
           return (
             <div key={room.id} className="metrics-service">
               <span className="metrics-label">{room.id}</span>

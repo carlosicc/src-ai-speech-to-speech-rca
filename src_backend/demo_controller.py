@@ -1,7 +1,6 @@
 import asyncio
 import logging
 
-from agents.diagnosis_agent import run_diagnosis
 from shared.config import INCIDENT_LOOP_INTERVAL, VOICE_SESSION_TIMEOUT, TWILIO_CALLING_TIMEOUT
 from shared.state import Phase, demo_state
 from websocket_server import broadcast_phase_change, build_system_status, manager
@@ -16,7 +15,7 @@ PHASE_DURATIONS: dict[Phase, float] = {
     Phase.RESOLVED: 3.0,
 }
 
-DIAGNOSIS_TIMEOUT: float = 30.0
+ORCHESTRATION_TIMEOUT: float = 150.0
 
 
 class DemoController:
@@ -26,6 +25,8 @@ class DemoController:
         self._auto_triggered: bool = False
 
     async def start(self) -> None:
+        from agents.master_agent import set_broadcast
+        set_broadcast(manager.broadcast, self._broadcast_phase_change)
         self._loop_task = asyncio.create_task(self._auto_loop())
         logger.info("Demo controller started")
 
@@ -33,10 +34,22 @@ class DemoController:
         if self._loop_task:
             self._loop_task.cancel()
             self._loop_task = None
-        if self._phase_task:
-            self._phase_task.cancel()
-            self._phase_task = None
+        await self.cancel_simulation()
         logger.info("Demo controller stopped")
+
+    async def cancel_simulation(self) -> None:
+        """Cancel any in-progress phase orchestration task."""
+        if self._phase_task and not self._phase_task.done():
+            self._phase_task.cancel()
+            try:
+                await self._phase_task
+            except asyncio.CancelledError:
+                pass
+        self._phase_task = None
+        self._auto_triggered = False
+
+    async def _broadcast_phase_change(self) -> None:
+        await broadcast_phase_change(demo_state)
 
     async def trigger_incident(self, service: str = "aurora-db", auto: bool = False) -> None:
         if demo_state.phase != Phase.HEALTHY:
@@ -57,7 +70,7 @@ class DemoController:
     async def _run_phases(self) -> None:
         while demo_state.phase != Phase.HEALTHY:
             if demo_state.phase == Phase.DIAGNOSING:
-                await self._run_diagnosis()
+                await self._run_master_orchestration()
             elif demo_state.phase == Phase.CALLING:
                 await self._run_voice_session()
             else:
@@ -68,44 +81,72 @@ class DemoController:
             demo_state.advance_phase()
             await broadcast_phase_change(demo_state)
             if demo_state.phase == Phase.HEALTHY:
+                demo_state.active_agent = None
                 await manager.broadcast(build_system_status(demo_state))
 
-    async def _run_diagnosis(self) -> None:
+    async def _run_master_orchestration(self) -> None:
+        """Master agent orchestrates: assess → diagnose → escalate to voice."""
         service = demo_state.incident.service if demo_state.incident else "aurora-db"
         incident_id = demo_state.incident.incident_id if demo_state.incident else "unknown"
-        await manager.broadcast({
-            "type": "agent_log",
-            "payload": {"message": f"Diagnosis agent running analysis on {service}...", "level": "info"},
-        })
+        demo_state.active_agent = "master"
+
+        from agents.master_agent import run_master_orchestration, run_master_orchestration_fallback
+
         try:
-            rca_summary = await asyncio.wait_for(
-                run_diagnosis(service, incident_id),
-                timeout=DIAGNOSIS_TIMEOUT,
+            await asyncio.wait_for(
+                run_master_orchestration(service, incident_id),
+                timeout=ORCHESTRATION_TIMEOUT,
             )
         except asyncio.TimeoutError:
-            logger.warning("Diagnosis agent timed out, using fallback RCA")
-            from agents.diagnosis_agent import _fallback_rca
-            rca_summary = _fallback_rca(service, incident_id)
+            logger.warning("Master agent timed out, running fallback orchestration")
+            demo_state.active_agent = "master"
+            try:
+                await asyncio.wait_for(
+                    run_master_orchestration_fallback(service, incident_id),
+                    timeout=60.0,
+                )
+            except (asyncio.TimeoutError, Exception) as e:
+                logger.error(f"Fallback orchestration also failed: {e}")
+                await self._force_advance_to_calling(service, incident_id)
         except Exception as e:
-            logger.error(f"Diagnosis agent error: {e}")
-            from agents.diagnosis_agent import _fallback_rca
-            rca_summary = _fallback_rca(service, incident_id)
+            logger.error(f"Master agent error: {e}, running fallback")
+            try:
+                await asyncio.wait_for(
+                    run_master_orchestration_fallback(service, incident_id),
+                    timeout=60.0,
+                )
+            except (asyncio.TimeoutError, Exception) as fallback_err:
+                logger.error(f"Fallback also failed: {fallback_err}")
+                await self._force_advance_to_calling(service, incident_id)
+
+        # After orchestration, if still in DIAGNOSING (master advanced to CALLING already),
+        # check if phase was already changed by the master agent tools
+        if demo_state.phase == Phase.DIAGNOSING:
+            # Master didn't advance phase — do it manually
+            await manager.broadcast({
+                "type": "phase_update",
+                "payload": {
+                    "phase": "DIAGNOSING",
+                    "agent": "master",
+                    "details": "Orchestration complete, advancing to escalation.",
+                    "incident_id": incident_id,
+                },
+            })
+
+    async def _force_advance_to_calling(self, service: str, incident_id: str) -> None:
+        """Last-resort: force demo to CALLING phase so it doesn't hang."""
+        logger.warning("Force-advancing to CALLING phase")
+        demo_state.phase = Phase.CALLING
+        demo_state.active_agent = "voice"
+        await broadcast_phase_change(demo_state)
         await manager.broadcast({
             "type": "agent_log",
-            "payload": {"message": f"RCA Complete: {rca_summary[:200]}", "level": "success"},
-        })
-        await manager.broadcast({
-            "type": "phase_update",
-            "payload": {
-                "phase": "DIAGNOSING",
-                "agent": "diagnosis",
-                "details": rca_summary,
-                "incident_id": incident_id,
-            },
+            "payload": {"message": "Failsafe: advancing to voice escalation...", "level": "warn"},
         })
 
     async def _run_voice_session(self) -> None:
         voice_mode = demo_state.voice_mode
+        demo_state.active_agent = "voice"
         # Only place real phone calls on manual trigger — never on auto-loop
         if voice_mode in ("mode_a", "mode_b") and self._auto_triggered:
             logger.info(f"Auto-loop: skipping real call (mode={voice_mode}), using simulated call")
@@ -142,6 +183,8 @@ class DemoController:
         if voice_router.active:
             logger.info("Voice session timeout reached, stopping")
             await voice_router.stop_session()
+
+        demo_state.active_agent = "master"
 
     async def _start_twilio_voice_session(self) -> None:
         """Start a Mode B voice session (outbound Twilio call)."""

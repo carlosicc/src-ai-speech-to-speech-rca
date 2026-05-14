@@ -40,6 +40,7 @@ export const useMetricsStore = create<MetricsStore>((set) => ({
 }));
 
 function handleWsMessage(message: WsMessage): void {
+  if (!message.payload) return;
   if (message.type === "metrics_update") {
     const { service, cpu, mem, iops } = message.payload as {
       service: string;

@@ -7,9 +7,12 @@ export interface WsMessage {
 type MessageHandler = (message: WsMessage) => void;
 
 function getWsUrl(): string {
-  if (import.meta.env.VITE_WS_URL) return import.meta.env.VITE_WS_URL;
-  const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
-  return `${proto}//${window.location.host}/ws`;
+  let url = import.meta.env.VITE_WS_URL || `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}/ws`;
+  const token = import.meta.env.VITE_API_TOKEN;
+  if (token) {
+    url += `${url.includes("?") ? "&" : "?"}token=${token}`;
+  }
+  return url;
 }
 const WS_URL = getWsUrl();
 const RECONNECT_DELAY = 2000;

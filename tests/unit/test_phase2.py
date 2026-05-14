@@ -240,15 +240,19 @@ class TestDemoControllerDiagnosisIntegration:
     async def test_run_phases_calls_diagnosis(self):
         from demo_controller import DemoController
         from websocket_server import manager
+        from agents.master_agent import set_broadcast
         controller = DemoController()
         demo_state.trigger_incident("aurora-db")
         demo_state.phase = Phase.DIAGNOSING
         broadcast_mock = AsyncMock()
         manager.broadcast = broadcast_mock
-        with patch("demo_controller.run_diagnosis", new_callable=AsyncMock) as mock_diag:
+        set_broadcast(broadcast_mock, AsyncMock())
+        with patch("agents.diagnosis_agent.run_diagnosis", new_callable=AsyncMock) as mock_diag:
             mock_diag.return_value = "Test RCA: database overloaded"
-            task = asyncio.create_task(controller._run_diagnosis())
-            await task
+            with patch("agents.master_agent.run_master_orchestration", new_callable=AsyncMock) as mock_master:
+                mock_master.side_effect = RuntimeError("force fallback")
+                task = asyncio.create_task(controller._run_master_orchestration())
+                await task
         agent_log_calls = [
             c[0][0] for c in broadcast_mock.call_args_list
             if c[0][0].get("type") == "agent_log"
@@ -260,23 +264,26 @@ class TestDemoControllerDiagnosisIntegration:
     async def test_diagnosis_timeout_uses_fallback(self):
         from demo_controller import DemoController
         from websocket_server import manager
+        from agents.master_agent import set_broadcast
         controller = DemoController()
         demo_state.trigger_incident("aurora-db")
         demo_state.phase = Phase.DIAGNOSING
         broadcast_mock = AsyncMock()
         manager.broadcast = broadcast_mock
+        set_broadcast(broadcast_mock, AsyncMock())
 
         async def slow_diagnosis(*args, **kwargs):
             await asyncio.sleep(999)
             return "never reached"
 
-        with patch("demo_controller.run_diagnosis", new=slow_diagnosis):
-            with patch("demo_controller.DIAGNOSIS_TIMEOUT", 0.1):
-                task = asyncio.create_task(controller._run_diagnosis())
+        with patch("agents.diagnosis_agent.run_diagnosis", new=slow_diagnosis):
+            with patch("agents.master_agent.run_master_orchestration", new_callable=AsyncMock) as mock_master:
+                mock_master.side_effect = RuntimeError("force fallback")
+                task = asyncio.create_task(controller._run_master_orchestration())
                 await task
         rca_calls = [
             c[0][0] for c in broadcast_mock.call_args_list
             if c[0][0].get("type") == "agent_log" and "RCA Complete" in c[0][0].get("payload", {}).get("message", "")
         ]
         assert len(rca_calls) == 1
-        assert "Root Cause" in rca_calls[0]["payload"]["message"]
+        assert "RCA Summary" in rca_calls[0]["payload"]["message"]

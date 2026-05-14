@@ -11,6 +11,8 @@ def _create_stacks():
         "project_name": "rca",
         "ecs": {"cpu": 512, "memory_mib": 1024, "desired_count": 1},
         "bedrock": {"region": "eu-west-1", "models": {"standard": {"model_id": "test-model"}}},
+        "nlb_cert_arn": "arn:aws:acm:eu-west-1:123456789012:certificate/test-cert-id",
+        "api_token": "test-token",
     }
     infra = InfrastructureStack(app, "TestInfra", env_name="test", env_context=env_context)
     backend = BackendStack(
@@ -37,11 +39,11 @@ def test_fargate_service_created():
     })
 
 
-def test_nlb_is_internal():
+def test_nlb_is_internet_facing():
     stack = _create_stacks()
     template = assertions.Template.from_stack(stack)
     template.has_resource_properties("AWS::ElasticLoadBalancingV2::LoadBalancer", {
-        "Scheme": "internal",
+        "Scheme": "internet-facing",
         "Type": "network",
     })
 
@@ -71,14 +73,13 @@ def test_container_environment_vars():
     })
 
 
-def test_security_group_no_public_ingress():
+def test_no_port_80_listener():
     stack = _create_stacks()
     template = assertions.Template.from_stack(stack)
-    sg_rules = template.find_resources("AWS::EC2::SecurityGroup")
-    for _, sg in sg_rules.items():
-        ingress = sg.get("Properties", {}).get("SecurityGroupIngress", [])
-        for rule in ingress:
-            assert rule.get("CidrIp") != "0.0.0.0/0"
+    listeners = template.find_resources("AWS::ElasticLoadBalancingV2::Listener")
+    for _, listener in listeners.items():
+        port = listener.get("Properties", {}).get("Port")
+        assert port != 80, "Port 80 listener should not exist"
 
 
 def test_log_group_created():
