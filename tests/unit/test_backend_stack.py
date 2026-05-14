@@ -89,3 +89,19 @@ def test_log_group_created():
         "LogGroupName": "/ecs/rca-backend-ecs-agent-svc-test",
         "RetentionInDays": 7,
     })
+
+
+def test_task_role_has_cloudwatch_permissions():
+    stack = _create_stacks()
+    template = assertions.Template.from_stack(stack)
+    template.has_resource_properties("AWS::IAM::Policy", {
+        "PolicyDocument": assertions.Match.object_like({
+            "Statement": assertions.Match.array_with([
+                assertions.Match.object_like({
+                    "Action": ["cloudwatch:GetMetricStatistics", "cloudwatch:GetMetricData"],
+                    "Effect": "Allow",
+                    "Resource": "*",
+                }),
+            ]),
+        }),
+    })

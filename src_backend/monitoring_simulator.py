@@ -4,6 +4,7 @@ import random
 from dataclasses import dataclass
 from typing import Optional
 
+from metrics.cloudwatch_rds import cloudwatch_rds
 from shared.state import Phase, demo_state
 
 logger = logging.getLogger(__name__)
@@ -74,6 +75,7 @@ class MonitoringSimulator:
 
     async def start(self, broadcast_fn) -> None:
         self._broadcast_fn = broadcast_fn
+        await cloudwatch_rds.start()
         self._task = asyncio.create_task(self._loop())
         logger.info("Monitoring simulator started")
 
@@ -81,6 +83,7 @@ class MonitoringSimulator:
         if self._task:
             self._task.cancel()
             self._task = None
+        await cloudwatch_rds.stop()
         logger.info("Monitoring simulator stopped")
 
     async def _loop(self) -> None:
@@ -94,14 +97,20 @@ class MonitoringSimulator:
                     incident_service = demo_state.incident.service
                 metrics = generate_metrics(incident_service)
                 for m in metrics:
+                    payload = {
+                        "service": m.service,
+                        "cpu": m.cpu,
+                        "mem": m.mem,
+                        "iops": m.iops,
+                    }
+                    # Use real CloudWatch metrics for aurora-db when not in incident
+                    if m.service == "aurora-db" and incident_service is None:
+                        real = cloudwatch_rds.get_current_metrics()
+                        if real is not None:
+                            payload = {"service": "aurora-db", **real}
                     await self._broadcast_fn({
                         "type": "metrics_update",
-                        "payload": {
-                            "service": m.service,
-                            "cpu": m.cpu,
-                            "mem": m.mem,
-                            "iops": m.iops,
-                        },
+                        "payload": payload,
                     })
             except asyncio.CancelledError:
                 raise

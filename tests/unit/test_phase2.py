@@ -120,7 +120,8 @@ class TestMonitoringSimulator:
 
 
 class TestDiagnosisAgentTools:
-    def test_pull_logs_aurora(self):
+    @patch("agents.diagnosis_agent._real_pull_logs", side_effect=Exception("no creds"))
+    def test_pull_logs_aurora_fallback(self, _mock):
         from agents.diagnosis_agent import pull_logs
         result = pull_logs._tool_func(service="aurora-db", minutes=5)
         assert "ERROR" in result
@@ -131,7 +132,8 @@ class TestDiagnosisAgentTools:
         result = pull_logs._tool_func(service="lambda", minutes=5)
         assert "operating normally" in result
 
-    def test_check_health_aurora(self):
+    @patch("agents.diagnosis_agent._real_check_health", side_effect=Exception("no creds"))
+    def test_check_health_aurora_fallback(self, _mock):
         from agents.diagnosis_agent import check_health
         result = check_health._tool_func(service="aurora-db")
         assert "UNHEALTHY" in result
@@ -147,7 +149,8 @@ class TestDiagnosisAgentTools:
         result = check_health._tool_func(service="s3-storage")
         assert "HEALTHY" in result
 
-    def test_check_recent_changes_aurora(self):
+    @patch("agents.diagnosis_agent._real_check_recent_changes", side_effect=Exception("no creds"))
+    def test_check_recent_changes_aurora_fallback(self, _mock):
         from agents.diagnosis_agent import check_recent_changes
         result = check_recent_changes._tool_func(service="aurora-db", hours=24)
         assert "nightly-etl" in result

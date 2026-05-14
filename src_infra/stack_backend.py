@@ -2,13 +2,14 @@ import os
 
 from constructs import Construct
 from aws_cdk import (
-    Stack, CfnOutput, Duration,
+    Stack, CfnOutput, Duration, RemovalPolicy,
     aws_ec2 as ec2,
     aws_ecs as ecs,
     aws_iam as iam,
     aws_logs as logs,
     aws_ecr_assets as ecr_assets,
     aws_elasticloadbalancingv2 as elbv2,
+    aws_rds as rds,
 )
 
 
@@ -94,6 +95,92 @@ class BackendStack(Stack):
             )
         )
 
+        # --- Aurora MySQL Serverless v2 (demo database) ---
+
+        # Security group for Aurora — allows 3306 only from ECS service SG
+        self.rds_sg = ec2.SecurityGroup(
+            self, f"RdsSg-{env_name}",
+            security_group_name=f"{project_name}-backend-sg-rds-{env_name}",
+            vpc=self.vpc,
+            allow_all_outbound=False,
+            description="Aurora MySQL - inbound 3306 from ECS tasks only",
+        )
+
+        # Aurora cluster with auto-generated credentials in Secrets Manager
+        self.aurora_cluster = rds.DatabaseCluster(
+            self, f"AuroraCluster-{env_name}",
+            cluster_identifier=f"{project_name}-rds-aurora-cluster-{env_name}",
+            engine=rds.DatabaseClusterEngine.aurora_mysql(
+                version=rds.AuroraMysqlEngineVersion.VER_3_08_0,
+            ),
+            credentials=rds.Credentials.from_generated_secret(
+                username="admin",
+                secret_name=f"{project_name}-secret-rds-admin-{self.account}-{self.region}-{env_name}",
+            ),
+            default_database_name="operations",
+            serverless_v2_min_capacity=0.5,
+            serverless_v2_max_capacity=1,
+            writer=rds.ClusterInstance.serverless_v2(
+                "WriterInstance",
+                instance_identifier=f"{project_name}-rds-aurora-writer-{env_name}",
+            ),
+            vpc=self.vpc,
+            vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_WITH_EGRESS),
+            security_groups=[self.rds_sg],
+            storage_encrypted=True,
+            removal_policy=RemovalPolicy.DESTROY,
+            deletion_protection=False,
+        )
+
+        # Grant ECS task role RDS control-plane operations
+        task_role.add_to_policy(
+            iam.PolicyStatement(
+                actions=[
+                    "rds:DescribeDBClusters",
+                    "rds:DescribeDBInstances",
+                    "rds:StopDBCluster",
+                    "rds:StartDBCluster",
+                ],
+                resources=[
+                    f"arn:aws:rds:{self.region}:{self.account}:cluster:{project_name}-rds-aurora-cluster-{env_name}",
+                    f"arn:aws:rds:{self.region}:{self.account}:db:{project_name}-rds-aurora-writer-{env_name}",
+                ],
+            )
+        )
+
+        # Grant ECS task role CloudWatch read access (Phase 2 — real metrics)
+        task_role.add_to_policy(
+            iam.PolicyStatement(
+                actions=[
+                    "cloudwatch:GetMetricStatistics",
+                    "cloudwatch:GetMetricData",
+                ],
+                resources=["*"],
+            )
+        )
+
+        # Phase 3 — CloudWatch Logs Insights + RDS events for diagnosis agent tools
+        task_role.add_to_policy(
+            iam.PolicyStatement(
+                actions=[
+                    "logs:StartQuery",
+                    "logs:GetQueryResults",
+                ],
+                resources=[
+                    f"arn:aws:logs:{self.region}:{self.account}:log-group:/aws/rds/cluster/{project_name}-rds-aurora-cluster-{env_name}/*",
+                ],
+            )
+        )
+        task_role.add_to_policy(
+            iam.PolicyStatement(
+                actions=["rds:DescribeEvents"],
+                resources=["*"],
+            )
+        )
+
+        # Grant ECS task role read access to the RDS secret
+        self.aurora_cluster.secret.grant_read(task_role)
+
         # Docker image from src_backend/
         backend_image = ecr_assets.DockerImageAsset(
             self, f"BackendImage-{env_name}",
@@ -149,6 +236,9 @@ class BackendStack(Stack):
                 ),
                 "AGENTCORE_REGION": env_context.get("region", "eu-west-1"),
                 "API_TOKEN": env_context.get("api_token", ""),
+                "RDS_CLUSTER_ENDPOINT": self.aurora_cluster.cluster_endpoint.hostname,
+                "RDS_SECRET_ARN": self.aurora_cluster.secret.secret_arn,
+                "RDS_CLUSTER_ID": f"{project_name}-rds-aurora-cluster-{env_name}",
             },
             health_check=ecs.HealthCheck(
                 command=["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"],
@@ -166,6 +256,13 @@ class BackendStack(Stack):
             security_group_name=f"{project_name}-backend-sg-ecs-{env_name}",
             vpc=self.vpc,
             allow_all_outbound=True,
+        )
+
+        # Allow ECS tasks to reach Aurora on port 3306
+        self.rds_sg.add_ingress_rule(
+            peer=service_sg,
+            connection=ec2.Port.tcp(3306),
+            description="MySQL from ECS tasks",
         )
 
         # ECS Service
@@ -232,3 +329,5 @@ class BackendStack(Stack):
         CfnOutput(self, "NlbDns", value=nlb.load_balancer_dns_name)
         CfnOutput(self, "WsUrl", value=f"wss://{nlb.load_balancer_dns_name}/ws")
         CfnOutput(self, "ServiceName", value=self.service.service_name)
+        CfnOutput(self, "RdsClusterEndpoint", value=self.aurora_cluster.cluster_endpoint.hostname)
+        CfnOutput(self, "RdsSecretArn", value=self.aurora_cluster.secret.secret_arn)
