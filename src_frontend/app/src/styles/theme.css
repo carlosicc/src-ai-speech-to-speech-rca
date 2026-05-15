@@ -417,6 +417,32 @@ html, body, #root {
   word-break: break-word;
 }
 
+/* City Title — pixel-art style, overlaid on canvas sky area */
+.city-title {
+  position: absolute;
+  top: 64px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-family: 'Press Start 2P', cursive;
+  font-size: 44px;
+  color: #c8e6a0;
+  text-shadow:
+    0 0 8px rgba(160, 208, 96, 0.6),
+    0 2px 0 #1a2a10,
+    0 0 20px rgba(160, 208, 96, 0.3);
+  letter-spacing: 2px;
+  z-index: 100;
+  pointer-events: none;
+  white-space: nowrap;
+  animation: title-float 4s ease-in-out infinite;
+}
+
+@keyframes title-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
 /* Diagram Buttons — pixel-art style, overlaid on canvas grass area */
 .diagram-overlay-buttons {
   position: absolute;

@@ -9,6 +9,7 @@ export function App() {
     <div className="app-layout">
       <div className="city-canvas-wrapper">
         <CityCanvas />
+        <div className="city-title">AI, You're On Call</div>
         <DiagramViewer />
       </div>
       <Sidebar />
