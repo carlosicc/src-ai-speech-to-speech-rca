@@ -1,6 +1,7 @@
 import { CityCanvas } from "@/components/CityCanvas";
 import { Sidebar } from "@/components/Sidebar";
 import { DevPanel } from "@/components/DevPanel";
+import { DiagramViewer } from "@/components/DiagramViewer";
 import "@/styles/theme.css";
 
 export function App() {
@@ -9,6 +10,7 @@ export function App() {
       <CityCanvas />
       <Sidebar />
       <DevPanel />
+      <DiagramViewer />
     </div>
   );
 }
