@@ -30,8 +30,16 @@ html, body, #root {
   width: 100vw;
 }
 
-.city-canvas {
+.city-canvas-wrapper {
   flex: 7;
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.city-canvas {
+  width: 100%;
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -409,36 +417,73 @@ html, body, #root {
   word-break: break-word;
 }
 
-/* Diagram Viewer Buttons */
-.diagram-buttons {
-  position: fixed;
-  bottom: 56px;
-  right: 16px;
+/* Diagram Buttons — pixel-art style, overlaid on canvas grass area */
+.diagram-overlay-buttons {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 20px;
+  z-index: 100;
+  pointer-events: auto;
+}
+
+.diagram-pixel-btn {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  z-index: 9998;
-}
-
-.diagram-btn {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: rgba(15, 20, 41, 0.6);
-  border: 1px solid rgba(38, 198, 218, 0.3);
-  color: rgba(38, 198, 218, 0.6);
-  font-size: 14px;
-  cursor: pointer;
-  display: flex;
   align-items: center;
-  justify-content: center;
-  transition: opacity 0.2s, background 0.2s;
+  gap: 4px;
+  padding: 8px 14px 6px;
+  background: #2a3a1e;
+  border: 3px solid #5a7a3a;
+  border-radius: 2px;
+  cursor: pointer;
+  image-rendering: pixelated;
+  box-shadow:
+    inset -2px -2px 0 #1a2a10,
+    inset 2px 2px 0 #6a9a4a,
+    0 4px 0 #1a2a10,
+    0 6px 8px rgba(0, 0, 0, 0.4);
+  transition: transform 0.1s, box-shadow 0.1s;
+  position: relative;
 }
 
-.diagram-btn:hover {
-  background: rgba(15, 20, 41, 0.9);
-  border-color: var(--accent-cyan);
-  color: var(--accent-cyan);
+.diagram-pixel-btn:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    inset -2px -2px 0 #1a2a10,
+    inset 2px 2px 0 #7aba5a,
+    0 6px 0 #1a2a10,
+    0 8px 12px rgba(0, 0, 0, 0.5);
+  background: #3a4a28;
+  border-color: #7aba5a;
+}
+
+.diagram-pixel-btn:active {
+  transform: translateY(2px);
+  box-shadow:
+    inset -2px -2px 0 #1a2a10,
+    inset 2px 2px 0 #6a9a4a,
+    0 1px 0 #1a2a10;
+}
+
+.diagram-pixel-icon {
+  font-size: 22px;
+  line-height: 1;
+  color: #c8e6a0;
+  text-shadow: 0 1px 0 #1a2a10;
+  image-rendering: pixelated;
+}
+
+.diagram-pixel-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #a0d060;
+  text-shadow: 0 1px 0 #1a2a10;
 }
 
 /* Diagram Overlay / Modal */

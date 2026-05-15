@@ -4,14 +4,14 @@ type DiagramType = "architecture" | "sequence";
 
 const DIAGRAMS: Record<DiagramType, { label: string; file: string; icon: string }> = {
   architecture: {
-    label: "Architecture",
+    label: "Arch",
     file: "/diagrams/architectureHorizontal.html",
-    icon: "\u2B1A",
+    icon: "\uD83C\uDFDB\uFE0F",
   },
   sequence: {
-    label: "Sequence",
+    label: "Flow",
     file: "/diagrams/sequenceDiagram.html",
-    icon: "\u21C6",
+    icon: "\uD83D\uDCDC",
   },
 };
 
@@ -20,22 +20,22 @@ export function DiagramViewer() {
 
   return (
     <>
-      <div className="diagram-buttons">
+      <div className="diagram-overlay-buttons">
         <button
-          className="diagram-btn"
+          className="diagram-pixel-btn"
           onClick={() => setActive("architecture")}
           title="View Architecture Diagram"
-          aria-label="View Architecture Diagram"
         >
-          {DIAGRAMS.architecture.icon}
+          <span className="diagram-pixel-icon">{DIAGRAMS.architecture.icon}</span>
+          <span className="diagram-pixel-label">{DIAGRAMS.architecture.label}</span>
         </button>
         <button
-          className="diagram-btn"
+          className="diagram-pixel-btn"
           onClick={() => setActive("sequence")}
           title="View Sequence Diagram"
-          aria-label="View Sequence Diagram"
         >
-          {DIAGRAMS.sequence.icon}
+          <span className="diagram-pixel-icon">{DIAGRAMS.sequence.icon}</span>
+          <span className="diagram-pixel-label">{DIAGRAMS.sequence.label}</span>
         </button>
       </div>
 

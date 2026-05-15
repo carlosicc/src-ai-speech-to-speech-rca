@@ -52,7 +52,7 @@
         }
 
         .top-bar h1 {
-            font-size: 1rem;
+            font-size: 1.7rem;
             font-weight: 400;
             color: #545B64;
         }
@@ -64,7 +64,7 @@
 
         .top-bar .subtitle {
             margin-left: auto;
-            font-size: 0.7rem;
+            font-size: 1.19rem;
             color: #879596;
         }
 
@@ -103,7 +103,7 @@
         }
 
         .actor-name {
-            font-size: 0.65rem;
+            font-size: 1.1rem;
             font-weight: 600;
             color: var(--aws-dark);
             line-height: 1.2;
@@ -128,7 +128,7 @@
             left: 12px;
             background: white;
             padding: 0 8px;
-            font-size: 0.7rem;
+            font-size: 1.19rem;
             font-weight: 600;
             color: var(--aws-dark);
             transform: translateY(-50%);
@@ -154,7 +154,7 @@
             transform: translateY(-50%);
             background: white;
             padding: 0 6px;
-            font-size: 0.6rem;
+            font-size: 1.02rem;
             font-weight: 600;
             color: #545B64;
             white-space: nowrap;
@@ -189,9 +189,9 @@
         }
 
         .svc-icon {
-            width: 48px;
-            height: 48px;
-            border-radius: 4px;
+            width: 86px;
+            height: 86px;
+            border-radius: 7px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -199,12 +199,12 @@
         }
 
         .svc-icon svg {
-            width: 28px;
-            height: 28px;
+            width: 50px;
+            height: 50px;
         }
 
         .svc-name {
-            font-size: 0.6rem;
+            font-size: 1.02rem;
             font-weight: 600;
             color: var(--aws-dark);
             text-align: center;
@@ -212,7 +212,7 @@
         }
 
         .svc-detail {
-            font-size: 0.5rem;
+            font-size: 0.85rem;
             color: #879596;
             text-align: center;
             line-height: 1.3;
@@ -321,7 +321,7 @@
             transform: translateY(-50%);
             background: white;
             padding: 0 4px;
-            font-size: 0.5rem;
+            font-size: 0.85rem;
             font-weight: 600;
             color: #879596;
             white-space: nowrap;
@@ -359,7 +359,7 @@
         }
 
         .flow-text {
-            font-size: 0.6rem;
+            font-size: 1.02rem;
             color: var(--aws-dark);
             font-weight: 500;
             white-space: nowrap;
@@ -462,7 +462,7 @@
         <div style="display: flex; flex-direction: column; gap: 12px;">
 
             <!-- ECS Fargate section -->
-            <div class="section vpc" style="border-color: var(--aws-compute); padding-top: 28px; flex: 1;">
+            <div class="section vpc" style="border-color: var(--aws-compute); padding-top: 28px; flex: 0.92; gap: 20px;">
                 <span class="section-title" style="color: var(--aws-compute);">ECS Fargate (VPC Private Subnets)</span>
 
                 <!-- Top row: infra services -->
@@ -520,7 +520,7 @@
             </div>
 
             <!-- Aurora MySQL - separate from ECS -->
-            <div class="section vpc" style="border-color: var(--aws-database); padding-top: 22px;">
+            <div class="section vpc" style="border-color: var(--aws-database); padding-top: 22px; padding-bottom: 12px; flex: 0.48;">
                 <span class="section-title" style="color: var(--aws-database);">Aurora MySQL (VPC Private Subnets)</span>
                 <div class="svc-row">
                     <div class="svc">

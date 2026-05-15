@@ -7,10 +7,12 @@ import "@/styles/theme.css";
 export function App() {
   return (
     <div className="app-layout">
-      <CityCanvas />
+      <div className="city-canvas-wrapper">
+        <CityCanvas />
+        <DiagramViewer />
+      </div>
       <Sidebar />
       <DevPanel />
-      <DiagramViewer />
     </div>
   );
 }
