@@ -43,7 +43,7 @@ class DemoState:
     incident: Optional[Incident] = None
     voice_mode: str = DEFAULT_VOICE_MODE
     phone_number: str = DEFAULT_PHONE_NUMBER
-    auto_advance: bool = True
+    auto_advance: bool = False
     active_agent: Optional[str] = None
 
     def trigger_incident(self, service: str = "aurora-db") -> Incident:

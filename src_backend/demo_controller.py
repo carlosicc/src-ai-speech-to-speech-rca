@@ -8,11 +8,11 @@ from websocket_server import broadcast_phase_change, build_system_status, manage
 logger = logging.getLogger(__name__)
 
 PHASE_DURATIONS: dict[Phase, float] = {
-    Phase.INCIDENT_DETECTED: 3.0,
+    Phase.INCIDENT_DETECTED: 2.0,
     Phase.DIAGNOSING: 0.0,
     Phase.CALLING: 0.0,
-    Phase.RECOVERING: 5.0,
-    Phase.RESOLVED: 3.0,
+    Phase.RECOVERING: 3.0,
+    Phase.RESOLVED: 2.0,
 }
 
 ORCHESTRATION_TIMEOUT: float = 150.0
@@ -26,7 +26,9 @@ class DemoController:
 
     async def start(self) -> None:
         from agents.master_agent import set_broadcast
+        from agents.diagnosis_agent import set_diagnosis_broadcast
         set_broadcast(manager.broadcast, self._broadcast_phase_change)
+        set_diagnosis_broadcast(manager.broadcast)
         self._loop_task = asyncio.create_task(self._auto_loop())
         logger.info("Demo controller started")
 

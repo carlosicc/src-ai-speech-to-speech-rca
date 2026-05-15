@@ -170,6 +170,7 @@ export const CHARACTERS: CharacterConfig[] = [
   { id: "citizen-4", color: "#f1948a", speed: 0.45 },
   { id: "citizen-5", color: "#76d7c4", speed: 0.3 },
   { id: "citizen-6", color: "#7fb3d3", speed: 0.4 },
+  { id: "citizen-7", color: "#e59866", speed: 0.35 },
 ];
 
 // Legacy exports for type compat

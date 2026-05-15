@@ -1,10 +1,8 @@
 import asyncio
 import logging
 from typing import Optional
-
 from strands import Agent, tool
 from strands.models import BedrockModel
-
 from shared.config import BEDROCK_MODEL_ID, BEDROCK_REGION
 from shared.prompts import get_prompt, get_soul
 

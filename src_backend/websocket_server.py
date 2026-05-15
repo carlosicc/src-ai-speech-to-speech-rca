@@ -113,7 +113,19 @@ async def handle_client_message(data: str) -> None:
     msg_type = message.get("type", "")
     payload = message.get("payload", {})
 
-    if msg_type == "trigger_incident":
+    if msg_type == "break_database":
+        if demo_state.phase == Phase.HEALTHY:
+            from shared.network_operations import revoke_db_access
+            result = await revoke_db_access()
+            await manager.broadcast({
+                "type": "agent_log",
+                "payload": {"message": f"Break DB: {result['message']}", "level": "warn"},
+            })
+            if result["status"] in ("success", "already_revoked"):
+                from demo_controller import demo_controller
+                await demo_controller.trigger_incident("aurora-db")
+
+    elif msg_type == "trigger_incident":
         service = payload.get("service", "aurora-db")
         if demo_state.phase == Phase.HEALTHY:
             demo_state.trigger_incident(service)
@@ -134,6 +146,12 @@ async def handle_client_message(data: str) -> None:
         await voice_router.stop_session()
         await _cancel_inflight_twilio_call()
         demo_state.reset()
+        from shared.network_operations import restore_db_access
+        restore_result = await restore_db_access()
+        if restore_result["status"] in ("success", "already_present"):
+            logger.info(f"Reset: SG rule confirmed present (result={restore_result['status']})")
+        else:
+            logger.warning(f"Reset: SG rule restore returned unexpected status: {restore_result}")
         await manager.broadcast(build_system_status(demo_state))
         await manager.broadcast({
             "type": "agent_log",

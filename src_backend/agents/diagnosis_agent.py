@@ -1,18 +1,35 @@
+import asyncio
 import logging
 import os
-from datetime import datetime, timezone, timedelta
-from typing import Optional
-
 import boto3
+from datetime import datetime, timezone, timedelta
+from typing import Any, Callable, Coroutine, Optional
 from botocore.exceptions import ClientError
-
 from strands import Agent, tool
 from strands.models import BedrockModel
-
 from shared.config import BEDROCK_MODEL_ID, BEDROCK_REGION
 from shared.prompts import get_prompt, get_soul
 
+# Options
 logger = logging.getLogger(__name__)
+_broadcast_fn: Optional[Callable[[dict[str, Any]], Coroutine]] = None
+
+
+def set_diagnosis_broadcast(broadcast_fn: Callable[[dict[str, Any]], Coroutine]) -> None:
+    global _broadcast_fn
+    _broadcast_fn = broadcast_fn
+
+
+def _broadcast_aws_error(tool_name: str, error: Exception) -> None:
+    """Broadcast an AWS error to the UI agent_log panel."""
+    if _broadcast_fn is None:
+        return
+    msg = {"type": "agent_log", "payload": {"message": f"[AWS ERROR] {tool_name}: {error}", "level": "error"}}
+    try:
+        loop = asyncio.get_running_loop()
+        asyncio.run_coroutine_threadsafe(_broadcast_fn(msg), loop)
+    except RuntimeError:
+        pass
 
 FALLBACK_PROMPT = """You are a diagnosis agent for a cloud operations center.
 When an incident is detected, you must:
@@ -29,10 +46,13 @@ You prioritize speed without sacrificing accuracy."""
 
 _RDS_CLUSTER_ID = os.environ.get("RDS_CLUSTER_ID", "rca-rds-aurora-cluster-dev01")
 _AWS_REGION = os.environ.get("BEDROCK_REGION", "eu-west-1")
+_RDS_SG_ID = os.environ.get("RDS_SECURITY_GROUP_ID", "sg-XXXXXXXXXXXXXXXXX")
+_ECS_SG_ID = os.environ.get("ECS_SECURITY_GROUP_ID", "sg-YYYYYYYYYYYYYYYYY")
 
 _logs_client: Optional[boto3.client] = None
 _rds_client: Optional[boto3.client] = None
 _cw_client: Optional[boto3.client] = None
+_ec2_client: Optional[boto3.client] = None
 
 
 def _get_logs_client() -> boto3.client:
@@ -54,6 +74,13 @@ def _get_cw_client() -> boto3.client:
     if _cw_client is None:
         _cw_client = boto3.client("cloudwatch", region_name=_AWS_REGION)
     return _cw_client
+
+
+def _get_ec2_client() -> boto3.client:
+    global _ec2_client
+    if _ec2_client is None:
+        _ec2_client = boto3.client("ec2", region_name=_AWS_REGION)
+    return _ec2_client
 
 
 def _simulated_pull_logs(service: str, minutes: int) -> str:
@@ -217,6 +244,44 @@ def _real_check_recent_changes(service: str, hours: int) -> str:
 
 
 @tool
+def check_network(service: str) -> str:
+    """Check network connectivity and security group configuration for a service.
+
+    Args:
+        service: The service to check network config for (e.g., 'aurora-db')
+    """
+    logger.info(f"Tool: check_network(service={service})")
+    if service == "aurora-db":
+        try:
+            client = _get_ec2_client()
+            response = client.describe_security_groups(GroupIds=[_RDS_SG_ID])
+            sg = response["SecurityGroups"][0]
+            for perm in sg.get("IpPermissions", []):
+                if perm.get("FromPort") == 3306 and perm.get("ToPort") == 3306:
+                    for pair in perm.get("UserIdGroupPairs", []):
+                        if pair.get("GroupId") == _ECS_SG_ID:
+                            return (
+                                f"Network: OK — port 3306 inbound rule present on {_RDS_SG_ID}\n"
+                                f"Source: {_ECS_SG_ID} (ECS tasks)\n"
+                                f"Status: Connectivity NORMAL"
+                            )
+            return (
+                f"ALERT: Port 3306 inbound rule MISSING from security group {_RDS_SG_ID}\n"
+                f"Expected source: {_ECS_SG_ID} (ECS tasks)\n"
+                f"Impact: All database connections from ECS tasks are BLOCKED\n"
+                f"Root cause: Security group misconfiguration — firewall rule removed"
+            )
+        except Exception as e:
+            logger.warning(f"Real check_network failed, using fallback: {e}")
+            _broadcast_aws_error("check_network", e)
+            return (
+                f"ALERT: Unable to verify security group rules ({e}). "
+                f"Network connectivity to {service} may be impaired."
+            )
+    return f"Network: OK — no security group issues detected for {service}"
+
+
+@tool
 def pull_logs(service: str, minutes: int = 5) -> str:
     """Pull recent logs from the specified service.
 
@@ -230,6 +295,7 @@ def pull_logs(service: str, minutes: int = 5) -> str:
             return _real_pull_logs(service, minutes)
         except Exception as e:
             logger.warning(f"Real pull_logs failed, using fallback: {e}")
+            _broadcast_aws_error("pull_logs", e)
             return _simulated_pull_logs(service, minutes)
     return _simulated_pull_logs(service, minutes)
 
@@ -247,6 +313,7 @@ def check_health(service: str) -> str:
             return _real_check_health(service)
         except Exception as e:
             logger.warning(f"Real check_health failed, using fallback: {e}")
+            _broadcast_aws_error("check_health", e)
             return _simulated_check_health(service)
     return _simulated_check_health(service)
 
@@ -265,6 +332,7 @@ def check_recent_changes(service: str, hours: int = 24) -> str:
             return _real_check_recent_changes(service, hours)
         except Exception as e:
             logger.warning(f"Real check_recent_changes failed, using fallback: {e}")
+            _broadcast_aws_error("check_recent_changes", e)
             return _simulated_check_recent_changes(service, hours)
     return _simulated_check_recent_changes(service, hours)
 
@@ -289,12 +357,13 @@ async def run_diagnosis(service: str, incident_id: str) -> str:
         agent = Agent(
             model=model,
             system_prompt=system_prompt,
-            tools=[pull_logs, check_health, check_recent_changes],
+            tools=[check_network, pull_logs, check_health, check_recent_changes],
         )
         user_prompt = (
             f"Incident {incident_id} detected on service '{service}' with CRITICAL severity. "
-            f"Investigate the root cause. Use all available tools to gather evidence, then produce "
-            f"a concise RCA summary with: affected service, root cause, impact assessment, and recommended action."
+            f"First check network connectivity (security group rules), then check service health, "
+            f"pull logs, and check recent changes. Produce a concise RCA summary with: "
+            f"affected service, root cause, impact assessment, and recommended action."
         )
         response = agent(user_prompt)
         rca_summary = str(response)

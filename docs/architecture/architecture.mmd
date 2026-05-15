@@ -1,0 +1,233 @@
+%%{ init: {
+  "theme": "base",
+  "themeVariables": {
+    "primaryColor": "#232F3E",
+    "primaryTextColor": "#FFFFFF",
+    "primaryBorderColor": "#FF9900",
+    "lineColor": "#527FFF",
+    "secondaryColor": "#1B2838",
+    "tertiaryColor": "#F2F3F3",
+    "noteTextColor": "#232F3E",
+    "noteBkgColor": "#FFF4E6"
+  },
+  "flowchart": { "curve": "basis", "padding": 20 }
+} }%%
+
+flowchart TB
+    %% ═══════════════════════════════════════════════════════════════
+    %% EXTERNAL USERS & SERVICES
+    %% ═══════════════════════════════════════════════════════════════
+
+    subgraph EXTERNAL["External Services & Users"]
+        direction LR
+        USER["Booth Visitor<br/>(Browser)"]
+        DBA["On-Call DBA<br/>(Phone)"]
+        TWILIO["Twilio<br/>Voice Platform"]
+    end
+
+    %% ═══════════════════════════════════════════════════════════════
+    %% CLOUDFRONT + FRONTEND
+    %% ═══════════════════════════════════════════════════════════════
+
+    subgraph CF["AWS CloudFront (CDN)"]
+        direction LR
+        CF_DIST["CloudFront<br/>Distribution"]
+        CF_FUNC["CloudFront Function<br/>(Basic Auth)"]
+        CF_OAI["Origin Access<br/>Identity"]
+    end
+
+    subgraph S3_FE["Amazon S3 (Frontend)"]
+        S3_BUCKET_FE["S3 Bucket<br/>React + THREE.js<br/>(Static Site)"]
+    end
+
+    %% ═══════════════════════════════════════════════════════════════
+    %% NETWORK LAYER
+    %% ═══════════════════════════════════════════════════════════════
+
+    subgraph NLB_LAYER["Network Load Balancer"]
+        NLB["NLB<br/>(Internet-facing)<br/>TLS :443 -> TCP :8080"]
+        ACM["ACM Certificate<br/>(TLS Termination)"]
+    end
+
+    %% ═══════════════════════════════════════════════════════════════
+    %% VPC
+    %% ═══════════════════════════════════════════════════════════════
+
+    subgraph VPC["VPC (eu-west-1, 2 AZs)"]
+        direction TB
+
+        subgraph PRIVATE_SUBNETS["Private Subnets (with NAT Egress)"]
+            direction LR
+
+            subgraph ECS_CLUSTER["ECS Fargate Cluster"]
+                direction TB
+                ECS_TASK["Fargate Task<br/>(512 CPU / 1GB RAM)"]
+
+                subgraph BACKEND["Backend Container (Python FastAPI)"]
+                    direction TB
+                    WS_SERVER["WebSocket Server<br/>(:8080)"]
+                    DEMO_CTRL["Demo Controller<br/>(Phase Machine)"]
+                    MON_SIM["Monitoring<br/>Simulator"]
+
+                    subgraph AGENTS["AI Agent Layer (Strands SDK)"]
+                        direction LR
+                        MASTER["Master<br/>Agent"]
+                        DIAG["Diagnosis<br/>Agent"]
+                        VOICE_R["Voice<br/>Router"]
+                    end
+
+                    subgraph VOICE_MODES["Voice Processing"]
+                        direction LR
+                        MODE_A["Mode A<br/>AgentCore<br/>+ Twilio"]
+                        MODE_B["Mode B<br/>Direct Bedrock<br/>+ Twilio"]
+                        MODE_C["Mode C<br/>Browser<br/>+ Bedrock"]
+                    end
+
+                    AUDIO_CONV["Audio Converter<br/>(mulaw/PCM<br/>8k/16k/24kHz)"]
+                end
+            end
+
+            subgraph AURORA["Aurora MySQL Serverless v2"]
+                RDS["Aurora Cluster<br/>(0.5-1 ACU)<br/>DB: operations<br/>Port 3306"]
+            end
+        end
+
+        NAT["NAT Gateway"]
+
+        subgraph SG["Security Groups"]
+            SG_ECS["ECS SG<br/>(TCP 8080 inbound)"]
+            SG_RDS["RDS SG<br/>(TCP 3306 from ECS SG)"]
+        end
+    end
+
+    %% ═══════════════════════════════════════════════════════════════
+    %% AWS SERVICES
+    %% ═══════════════════════════════════════════════════════════════
+
+    subgraph BEDROCK["Amazon Bedrock"]
+        direction LR
+        CLAUDE["Claude Sonnet 4.6<br/>(eu-west-1)<br/>Agents"]
+        NOVA["Nova Sonic v1<br/>(us-east-1)<br/>Voice AI"]
+    end
+
+    subgraph AGENTCORE["Amazon Bedrock AgentCore"]
+        AC_RUNTIME["AgentCore Runtime<br/>(BidiAgent)<br/>Nova Sonic + Tools"]
+    end
+
+    subgraph DATA_SERVICES["AWS Data & Config Services"]
+        direction LR
+        DDB["DynamoDB<br/>(Single Table)<br/>State & Events"]
+        S3_DATA["S3 Bucket<br/>(Raw Data)<br/>Logs & Snapshots"]
+        SECRETS["Secrets Manager<br/>(Twilio Creds,<br/>RDS Creds)"]
+    end
+
+    subgraph MONITORING["AWS Monitoring"]
+        direction LR
+        CW_LOGS["CloudWatch Logs<br/>(RDS Error Logs,<br/>ECS Logs)"]
+        CW_METRICS["CloudWatch Metrics<br/>(CPU, Memory,<br/>Connections, IOPS)"]
+    end
+
+    subgraph IAM_LAYER["IAM & Security"]
+        direction LR
+        TASK_ROLE["ECS Task Role<br/>(Bedrock, EC2, RDS,<br/>CW, DDB, S3, SM)"]
+        EXEC_ROLE["Task Execution Role<br/>(ECR Pull, CW Logs)"]
+    end
+
+    %% ═══════════════════════════════════════════════════════════════
+    %% CONNECTIONS
+    %% ═══════════════════════════════════════════════════════════════
+
+    %% User flows
+    USER -->|"HTTPS"| CF_DIST
+    USER -->|"WSS :443"| NLB
+    DBA -->|"Phone Call"| TWILIO
+
+    %% CloudFront chain
+    CF_DIST --> CF_FUNC
+    CF_FUNC --> CF_OAI
+    CF_OAI --> S3_BUCKET_FE
+
+    %% NLB to ECS
+    NLB -->|"TCP :8080"| WS_SERVER
+    ACM -.-|"TLS cert"| NLB
+
+    %% Twilio flows
+    TWILIO -->|"Media Stream<br/>WebSocket"| WS_SERVER
+    MODE_B -->|"REST API<br/>(Place Call)"| TWILIO
+    MODE_A -->|"REST API<br/>(Place Call)"| TWILIO
+
+    %% Internal backend flows
+    WS_SERVER --> DEMO_CTRL
+    DEMO_CTRL --> MASTER
+    MASTER --> DIAG
+    MASTER --> VOICE_R
+    VOICE_R --> MODE_A
+    VOICE_R --> MODE_B
+    VOICE_R --> MODE_C
+    MODE_A & MODE_B & MODE_C --> AUDIO_CONV
+    DEMO_CTRL --> MON_SIM
+
+    %% Bedrock connections
+    MASTER -->|"InvokeModel"| CLAUDE
+    DIAG -->|"InvokeModel"| CLAUDE
+    MODE_B -->|"BidirectionalStream"| NOVA
+    MODE_C -->|"BidirectionalStream"| NOVA
+    MODE_A -->|"SigV4 WebSocket"| AC_RUNTIME
+    AC_RUNTIME -->|"Managed Stream"| NOVA
+
+    %% Data service connections
+    DEMO_CTRL --> DDB
+    DIAG -->|"Describe<br/>Clusters"| RDS
+    DIAG -->|"StartQuery /<br/>GetResults"| CW_LOGS
+    DIAG -->|"GetMetricData"| CW_METRICS
+    MON_SIM -->|"GetMetricStatistics"| CW_METRICS
+    BACKEND --> S3_DATA
+    BACKEND --> SECRETS
+
+    %% Security group manipulation (the break/fix demo)
+    DIAG -->|"DescribeSecurityGroups"| SG_RDS
+    MASTER -->|"Revoke/Authorize<br/>Ingress (Break/Fix)"| SG_RDS
+
+    %% IAM
+    TASK_ROLE -.-|"Attached to"| ECS_TASK
+    EXEC_ROLE -.-|"Attached to"| ECS_TASK
+
+    %% NAT egress
+    ECS_CLUSTER -->|"Outbound"| NAT
+    NAT -->|"Internet"| TWILIO
+    NAT -->|"AWS APIs"| BEDROCK
+    NAT -->|"AWS APIs"| MONITORING
+
+    %% Security group enforcement
+    SG_ECS -.-|"Protects"| ECS_CLUSTER
+    SG_RDS -.-|"Protects"| AURORA
+
+    %% ═══════════════════════════════════════════════════════════════
+    %% STYLING
+    %% ═══════════════════════════════════════════════════════════════
+
+    classDef aws fill:#232F3E,stroke:#FF9900,stroke-width:2px,color:#FFFFFF
+    classDef awsCompute fill:#ED7100,stroke:#232F3E,stroke-width:2px,color:#FFFFFF
+    classDef awsDB fill:#3B48CC,stroke:#232F3E,stroke-width:2px,color:#FFFFFF
+    classDef awsNetwork fill:#8C4FFF,stroke:#232F3E,stroke-width:2px,color:#FFFFFF
+    classDef awsStorage fill:#3F8624,stroke:#232F3E,stroke-width:2px,color:#FFFFFF
+    classDef awsAI fill:#01A88D,stroke:#232F3E,stroke-width:2px,color:#FFFFFF
+    classDef awsSecurity fill:#DD344C,stroke:#232F3E,stroke-width:2px,color:#FFFFFF
+    classDef awsMonitoring fill:#E7157B,stroke:#232F3E,stroke-width:2px,color:#FFFFFF
+    classDef external fill:#1B2838,stroke:#527FFF,stroke-width:2px,color:#FFFFFF
+    classDef user fill:#FFFFFF,stroke:#232F3E,stroke-width:2px,color:#232F3E
+    classDef agent fill:#146EB4,stroke:#FF9900,stroke-width:2px,color:#FFFFFF
+
+    class USER,DBA user
+    class TWILIO external
+    class CF_DIST,CF_FUNC,CF_OAI awsNetwork
+    class S3_BUCKET_FE,S3_DATA awsStorage
+    class NLB,ACM,NAT,SG_ECS,SG_RDS awsNetwork
+    class ECS_TASK awsCompute
+    class WS_SERVER,DEMO_CTRL,MON_SIM,AUDIO_CONV awsCompute
+    class MASTER,DIAG,VOICE_R agent
+    class MODE_A,MODE_B,MODE_C agent
+    class RDS,DDB awsDB
+    class CLAUDE,NOVA,AC_RUNTIME awsAI
+    class CW_LOGS,CW_METRICS awsMonitoring
+    class SECRETS,TASK_ROLE,EXEC_ROLE awsSecurity

@@ -132,19 +132,35 @@ class BackendStack(Stack):
             deletion_protection=False,
         )
 
-        # Grant ECS task role RDS control-plane operations
+        # Grant ECS task role RDS control-plane operations (read-only — stop/start replaced by SG manipulation)
         task_role.add_to_policy(
             iam.PolicyStatement(
                 actions=[
                     "rds:DescribeDBClusters",
                     "rds:DescribeDBInstances",
-                    "rds:StopDBCluster",
-                    "rds:StartDBCluster",
                 ],
                 resources=[
                     f"arn:aws:rds:{self.region}:{self.account}:cluster:{project_name}-rds-aurora-cluster-{env_name}",
                     f"arn:aws:rds:{self.region}:{self.account}:db:{project_name}-rds-aurora-writer-{env_name}",
                 ],
+            )
+        )
+
+        # Phase 4.1 — Security group manipulation for instant break/fix
+        rds_sg_arn = f"arn:aws:ec2:{self.region}:{self.account}:security-group/{self.rds_sg.security_group_id}"
+        task_role.add_to_policy(
+            iam.PolicyStatement(
+                actions=[
+                    "ec2:RevokeSecurityGroupIngress",
+                    "ec2:AuthorizeSecurityGroupIngress",
+                ],
+                resources=[rds_sg_arn],
+            )
+        )
+        task_role.add_to_policy(
+            iam.PolicyStatement(
+                actions=["ec2:DescribeSecurityGroups"],
+                resources=["*"],
             )
         )
 
@@ -180,6 +196,14 @@ class BackendStack(Stack):
 
         # Grant ECS task role read access to the RDS secret
         self.aurora_cluster.secret.grant_read(task_role)
+
+        # Security group for the ECS service (defined early so env vars can reference it)
+        service_sg = ec2.SecurityGroup(
+            self, f"ServiceSg-{env_name}",
+            security_group_name=f"{project_name}-backend-sg-ecs-{env_name}",
+            vpc=self.vpc,
+            allow_all_outbound=True,
+        )
 
         # Docker image from src_backend/
         backend_image = ecr_assets.DockerImageAsset(
@@ -218,7 +242,7 @@ class BackendStack(Stack):
                 "WS_PORT": "8080",
                 "INCIDENT_LOOP_INTERVAL": "180",
                 "DEFAULT_PHONE_NUMBER": "+44XXXXXXXXXX",
-                "DEFAULT_VOICE_MODE": "mode_c",
+                "DEFAULT_VOICE_MODE": "mode_b",
                 "BEDROCK_REGION": bedrock_config.get("region", "eu-west-1"),
                 "BEDROCK_MODEL_ID": bedrock_config.get("models", {}).get("standard", {}).get(
                     "model_id", "eu.anthropic.claude-sonnet-4-6"
@@ -239,6 +263,8 @@ class BackendStack(Stack):
                 "RDS_CLUSTER_ENDPOINT": self.aurora_cluster.cluster_endpoint.hostname,
                 "RDS_SECRET_ARN": self.aurora_cluster.secret.secret_arn,
                 "RDS_CLUSTER_ID": f"{project_name}-rds-aurora-cluster-{env_name}",
+                "RDS_SECURITY_GROUP_ID": self.rds_sg.security_group_id,
+                "ECS_SECURITY_GROUP_ID": service_sg.security_group_id,
             },
             health_check=ecs.HealthCheck(
                 command=["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"],
@@ -249,14 +275,6 @@ class BackendStack(Stack):
             ),
         )
         container.add_port_mappings(ecs.PortMapping(container_port=8080, protocol=ecs.Protocol.TCP))
-
-        # Security group for the service
-        service_sg = ec2.SecurityGroup(
-            self, f"ServiceSg-{env_name}",
-            security_group_name=f"{project_name}-backend-sg-ecs-{env_name}",
-            vpc=self.vpc,
-            allow_all_outbound=True,
-        )
 
         # Allow ECS tasks to reach Aurora on port 3306
         self.rds_sg.add_ingress_rule(

@@ -23,7 +23,7 @@ interface SceneStore {
 export const useSceneStore = create<SceneStore>((set, get) => ({
   state: "HEALTHY",
   affectedService: null,
-  autoAdvance: true,
+  autoAdvance: false,
   connected: false,
   activeAgent: null,
   agentStatus: null,

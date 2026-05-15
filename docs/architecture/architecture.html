@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alert to Action - AI Operations Center Architecture</title>
+    <style>
+        :root {
+            --aws-dark: #232F3E;
+            --aws-orange: #FF9900;
+            --aws-blue: #527FFF;
+            --aws-teal: #01A88D;
+            --aws-compute: #ED7100;
+            --aws-database: #3B48CC;
+            --aws-network: #8C4FFF;
+            --aws-storage: #3F8624;
+            --aws-ai: #01A88D;
+            --aws-security: #DD344C;
+            --aws-monitoring: #E7157B;
+            --aws-light: #F2F3F3;
+            --shadow: 0 4px 24px rgba(35, 47, 62, 0.18);
+            --shadow-hover: 0 8px 32px rgba(35, 47, 62, 0.28);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Amazon Ember', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0D1B2A 0%, #1B2838 40%, #232F3E 100%);
+            color: #F2F3F3;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .header {
+            text-align: center;
+            padding: 40px 20px 20px;
+            position: relative;
+        }
+
+        .header::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 200px;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, var(--aws-orange), transparent);
+        }
+
+        .header h1 {
+            font-size: 2.2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--aws-orange), #FFD580);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 8px;
+            letter-spacing: -0.5px;
+        }
+
+        .header p {
+            font-size: 1rem;
+            color: #8899AA;
+            font-weight: 300;
+        }
+
+        .badge {
+            display: inline-block;
+            background: rgba(255, 153, 0, 0.15);
+            border: 1px solid rgba(255, 153, 0, 0.4);
+            color: var(--aws-orange);
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-top: 10px;
+            letter-spacing: 0.5px;
+        }
+
+        .architecture {
+            max-width: 1400px;
+            margin: 30px auto;
+            padding: 0 20px;
+            position: relative;
+        }
+
+        .layer {
+            margin-bottom: 24px;
+            position: relative;
+        }
+
+        .layer-label {
+            position: absolute;
+            left: -10px;
+            top: 50%;
+            transform: translateY(-50%) rotate(-90deg);
+            font-size: 0.65rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: rgba(255, 153, 0, 0.6);
+            white-space: nowrap;
+            z-index: 10;
+        }
+
+        .layer-content {
+            margin-left: 30px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 16px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .row {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .component {
+            background: rgba(35, 47, 62, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 16px;
+            min-width: 140px;
+            max-width: 200px;
+            text-align: center;
+            position: relative;
+            transition: all 0.3s ease;
+            cursor: default;
+        }
+
+        .component:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-hover);
+            border-color: rgba(255, 153, 0, 0.3);
+        }
+
+        .component .icon {
+            width: 42px;
+            height: 42px;
+            margin: 0 auto 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            font-size: 1.2rem;
+        }
+
+        .component .name {
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-bottom: 4px;
+            color: #FFFFFF;
+        }
+
+        .component .detail {
+            font-size: 0.65rem;
+            color: #8899AA;
+            line-height: 1.4;
+        }
+
+        .component .service-tag {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            font-size: 0.55rem;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 4px;
+            letter-spacing: 0.3px;
+        }
+
+        /* Category colors */
+        .cat-compute .icon { background: rgba(237, 113, 0, 0.2); }
+        .cat-compute .service-tag { background: var(--aws-compute); color: white; }
+        .cat-compute { border-left: 3px solid var(--aws-compute); }
+
+        .cat-database .icon { background: rgba(59, 72, 204, 0.2); }
+        .cat-database .service-tag { background: var(--aws-database); color: white; }
+        .cat-database { border-left: 3px solid var(--aws-database); }
+
+        .cat-network .icon { background: rgba(140, 79, 255, 0.2); }
+        .cat-network .service-tag { background: var(--aws-network); color: white; }
+        .cat-network { border-left: 3px solid var(--aws-network); }
+
+        .cat-storage .icon { background: rgba(63, 134, 36, 0.2); }
+        .cat-storage .service-tag { background: var(--aws-storage); color: white; }
+        .cat-storage { border-left: 3px solid var(--aws-storage); }
+
+        .cat-ai .icon { background: rgba(1, 168, 141, 0.2); }
+        .cat-ai .service-tag { background: var(--aws-ai); color: white; }
+        .cat-ai { border-left: 3px solid var(--aws-ai); }
+
+        .cat-security .icon { background: rgba(221, 52, 76, 0.2); }
+        .cat-security .service-tag { background: var(--aws-security); color: white; }
+        .cat-security { border-left: 3px solid var(--aws-security); }
+
+        .cat-monitoring .icon { background: rgba(231, 21, 123, 0.2); }
+        .cat-monitoring .service-tag { background: var(--aws-monitoring); color: white; }
+        .cat-monitoring { border-left: 3px solid var(--aws-monitoring); }
+
+        .cat-external .icon { background: rgba(82, 127, 255, 0.2); }
+        .cat-external .service-tag { background: var(--aws-blue); color: white; }
+        .cat-external { border-left: 3px solid var(--aws-blue); }
+
+        .cat-agent .icon { background: rgba(255, 153, 0, 0.2); }
+        .cat-agent .service-tag { background: var(--aws-orange); color: var(--aws-dark); }
+        .cat-agent { border-left: 3px solid var(--aws-orange); }
+
+        /* Connection lines */
+        .connections {
+            position: relative;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 4px 0;
+        }
+
+        .conn-line {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .conn-arrow {
+            color: var(--aws-orange);
+            font-size: 1.4rem;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .conn-label {
+            font-size: 0.6rem;
+            color: var(--aws-orange);
+            font-weight: 600;
+            background: rgba(255, 153, 0, 0.1);
+            padding: 2px 8px;
+            border-radius: 4px;
+            border: 1px solid rgba(255, 153, 0, 0.2);
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+
+        /* VPC Box */
+        .vpc-wrapper {
+            border: 2px dashed rgba(140, 79, 255, 0.4);
+            border-radius: 16px;
+            padding: 20px;
+            position: relative;
+            margin-top: 10px;
+        }
+
+        .vpc-wrapper::before {
+            content: 'VPC (eu-west-1, 2 AZs)';
+            position: absolute;
+            top: -12px;
+            left: 20px;
+            background: var(--aws-dark);
+            padding: 2px 12px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: var(--aws-network);
+            border-radius: 4px;
+            border: 1px solid rgba(140, 79, 255, 0.3);
+        }
+
+        .subnet-wrapper {
+            border: 1px dashed rgba(140, 79, 255, 0.2);
+            border-radius: 12px;
+            padding: 16px;
+            margin-top: 8px;
+            position: relative;
+        }
+
+        .subnet-wrapper::before {
+            content: 'Private Subnets (NAT Egress)';
+            position: absolute;
+            top: -10px;
+            left: 16px;
+            background: #1B2838;
+            padding: 2px 8px;
+            font-size: 0.6rem;
+            color: rgba(140, 79, 255, 0.7);
+            border-radius: 3px;
+        }
+
+        /* Grouped sections within backend */
+        .group-box {
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 10px;
+            padding: 14px;
+            margin: 10px 0;
+            background: rgba(0, 0, 0, 0.2);
+            position: relative;
+        }
+
+        .group-box .group-title {
+            position: absolute;
+            top: -9px;
+            left: 14px;
+            font-size: 0.6rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            background: #1B2838;
+            padding: 1px 8px;
+            border-radius: 3px;
+        }
+
+        .group-title.ai { color: var(--aws-ai); }
+        .group-title.voice { color: var(--aws-orange); }
+        .group-title.data { color: var(--aws-database); }
+
+        /* Flow diagram section */
+        .flow-section {
+            max-width: 1400px;
+            margin: 40px auto;
+            padding: 0 20px 40px;
+        }
+
+        .flow-section h2 {
+            text-align: center;
+            font-size: 1.4rem;
+            color: var(--aws-orange);
+            margin-bottom: 24px;
+            font-weight: 600;
+        }
+
+        .flow-timeline {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 4px;
+            position: relative;
+            padding: 20px 0;
+        }
+
+        .flow-timeline::before {
+            content: '';
+            position: absolute;
+            top: 50px;
+            left: 5%;
+            right: 5%;
+            height: 3px;
+            background: linear-gradient(90deg,
+                var(--aws-storage),
+                var(--aws-security),
+                var(--aws-ai),
+                var(--aws-orange),
+                var(--aws-teal),
+                var(--aws-storage)
+            );
+            border-radius: 2px;
+        }
+
+        .flow-step {
+            flex: 1;
+            text-align: center;
+            position: relative;
+            z-index: 1;
+        }
+
+        .flow-dot {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            margin: 38px auto 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.65rem;
+            font-weight: 700;
+            color: white;
+            box-shadow: 0 0 12px rgba(0,0,0,0.4);
+        }
+
+        .flow-step:nth-child(1) .flow-dot { background: var(--aws-storage); }
+        .flow-step:nth-child(2) .flow-dot { background: var(--aws-security); }
+        .flow-step:nth-child(3) .flow-dot { background: var(--aws-ai); }
+        .flow-step:nth-child(4) .flow-dot { background: var(--aws-orange); }
+        .flow-step:nth-child(5) .flow-dot { background: var(--aws-teal); }
+        .flow-step:nth-child(6) .flow-dot { background: var(--aws-storage); }
+
+        .flow-title {
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: #FFFFFF;
+            margin-bottom: 4px;
+        }
+
+        .flow-desc {
+            font-size: 0.6rem;
+            color: #8899AA;
+            line-height: 1.4;
+            max-width: 140px;
+            margin: 0 auto;
+        }
+
+        .flow-duration {
+            font-size: 0.55rem;
+            color: var(--aws-orange);
+            margin-top: 4px;
+            font-weight: 600;
+        }
+
+        /* Legend */
+        .legend {
+            max-width: 1400px;
+            margin: 0 auto 30px;
+            padding: 0 20px;
+        }
+
+        .legend-grid {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            padding: 16px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.65rem;
+            color: #8899AA;
+        }
+
+        .legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 3px;
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 20px;
+            font-size: 0.65rem;
+            color: #556677;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .row { gap: 10px; }
+            .component { min-width: 120px; padding: 12px; }
+        }
+
+        @media (max-width: 768px) {
+            .header h1 { font-size: 1.6rem; }
+            .row { flex-direction: column; align-items: center; }
+            .flow-timeline { flex-direction: column; gap: 16px; }
+            .flow-timeline::before { display: none; }
+            .layer-label { display: none; }
+            .layer-content { margin-left: 0; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+    <h1>Alert to Action</h1>
+    <p>AI Operations Center - End-to-End Architecture</p>
+    <span class="badge">AWS Summit Milan 2026 - AI Village</span>
+</div>
+
+<!-- Legend -->
+<div class="legend">
+    <div class="legend-grid">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--aws-compute)"></div>Compute</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--aws-database)"></div>Database</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--aws-network)"></div>Networking</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--aws-storage)"></div>Storage</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--aws-ai)"></div>AI / ML</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--aws-security)"></div>Security</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--aws-monitoring)"></div>Monitoring</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--aws-orange)"></div>AI Agents</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--aws-blue)"></div>External</div>
+    </div>
+</div>
+
+<!-- Architecture Diagram -->
+<div class="architecture">
+
+    <!-- Layer 1: External Users -->
+    <div class="layer">
+        <span class="layer-label">Users</span>
+        <div class="layer-content">
+            <div class="row">
+                <div class="component cat-external">
+                    <span class="service-tag">User</span>
+                    <div class="icon">&#x1F9D1;&#x200D;&#x1F4BB;</div>
+                    <div class="name">Booth Visitor</div>
+                    <div class="detail">Browser (React + THREE.js)<br/>WebSocket + Mic/Speaker</div>
+                </div>
+                <div class="component cat-external">
+                    <span class="service-tag">User</span>
+                    <div class="icon">&#x1F4F1;</div>
+                    <div class="name">On-Call DBA</div>
+                    <div class="detail">Phone call recipient<br/>Voice passphrase auth</div>
+                </div>
+                <div class="component cat-external">
+                    <span class="service-tag">External</span>
+                    <div class="icon">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" fill="#527FFF"/>
+                        </svg>
+                    </div>
+                    <div class="name">Twilio</div>
+                    <div class="detail">Voice platform<br/>Media Streams API<br/>Outbound calls</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Connection -->
+    <div class="connections">
+        <div class="conn-line">
+            <span class="conn-arrow">&#x25BC;</span>
+            <span class="conn-label">HTTPS / WSS :443 / PSTN</span>
+            <span class="conn-arrow">&#x25BC;</span>
+        </div>
+    </div>
+
+    <!-- Layer 2: Edge / CDN -->
+    <div class="layer">
+        <span class="layer-label">Edge</span>
+        <div class="layer-content">
+            <div class="row">
+                <div class="component cat-network">
+                    <span class="service-tag">CDN</span>
+                    <div class="icon">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                            <circle cx="12" cy="12" r="9" stroke="#8C4FFF" stroke-width="1.5" fill="none"/>
+                            <path d="M12 3c3 3 4 6 4 9s-1 6-4 9M12 3c-3 3-4 6-4 9s1 6 4 9M3 12h18" stroke="#8C4FFF" stroke-width="1.5"/>
+                        </svg>
+                    </div>
+                    <div class="name">CloudFront</div>
+                    <div class="detail">Distribution + OAI<br/>CloudFront Function<br/>(Basic Auth)</div>
+                </div>
+                <div class="component cat-network">
+                    <span class="service-tag">NLB</span>
+                    <div class="icon">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                            <rect x="4" y="8" width="16" height="8" rx="2" stroke="#8C4FFF" stroke-width="1.5" fill="none"/>
+                            <path d="M12 4v4M8 4h8M12 16v4M8 20h8" stroke="#8C4FFF" stroke-width="1.5"/>
+                        </svg>
+                    </div>
+                    <div class="name">Network Load Balancer</div>
+                    <div class="detail">Internet-facing<br/>TLS :443 &#x2192; TCP :8080<br/>ACM Certificate</div>
+                </div>
+                <div class="component cat-storage">
+                    <span class="service-tag">S3</span>
+                    <div class="icon">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                            <path d="M5 7l7-3 7 3v10l-7 3-7-3V7z" stroke="#3F8624" stroke-width="1.5" fill="none"/>
+                            <path d="M5 7l7 3 7-3M12 10v10" stroke="#3F8624" stroke-width="1.5"/>
+                        </svg>
+                    </div>
+                    <div class="name">S3 Frontend</div>
+                    <div class="detail">React + THREE.js<br/>Isometric city scene<br/>Static hosting</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Connection -->
+    <div class="connections">
+        <div class="conn-line">
+            <span class="conn-arrow">&#x25BC;</span>
+            <span class="conn-label">WebSocket + Twilio Media Stream</span>
+            <span class="conn-arrow">&#x25BC;</span>
+        </div>
+    </div>
+
+    <!-- Layer 3: VPC -->
+    <div class="layer">
+        <span class="layer-label">VPC</span>
+        <div class="layer-content">
+            <div class="vpc-wrapper">
+                <div class="subnet-wrapper">
+
+                    <!-- ECS + Backend -->
+                    <div class="group-box">
+                        <span class="group-title ai">ECS Fargate Cluster</span>
+                        <div class="row">
+                            <div class="component cat-compute">
+                                <span class="service-tag">Fargate</span>
+                                <div class="icon">
+                                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                                        <rect x="4" y="4" width="16" height="16" rx="3" stroke="#ED7100" stroke-width="1.5" fill="none"/>
+                                        <path d="M8 8h8v8H8z" stroke="#ED7100" stroke-width="1.5" fill="none"/>
+                                        <circle cx="12" cy="12" r="2" fill="#ED7100"/>
+                                    </svg>
+                                </div>
+                                <div class="name">WebSocket Server</div>
+                                <div class="detail">FastAPI + Uvicorn<br/>Port 8080<br/>/ws, /health, /twilio/*</div>
+                            </div>
+                            <div class="component cat-compute">
+                                <span class="service-tag">Fargate</span>
+                                <div class="icon">
+                                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                                        <circle cx="12" cy="12" r="8" stroke="#ED7100" stroke-width="1.5" fill="none"/>
+                                        <path d="M12 8v4l3 3" stroke="#ED7100" stroke-width="1.5" stroke-linecap="round"/>
+                                    </svg>
+                                </div>
+                                <div class="name">Demo Controller</div>
+                                <div class="detail">Phase machine<br/>Auto-loop (180s)<br/>Incident orchestration</div>
+                            </div>
+                            <div class="component cat-compute">
+                                <span class="service-tag">Fargate</span>
+                                <div class="icon">
+                                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                                        <path d="M3 12h4l3-8 4 16 3-8h4" stroke="#ED7100" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                                    </svg>
+                                </div>
+                                <div class="name">Monitoring Simulator</div>
+                                <div class="detail">Real + synthetic metrics<br/>2s broadcast interval<br/>7 services tracked</div>
+                            </div>
+                        </div>
+
+                        <!-- AI Agents -->
+                        <div class="group-box" style="margin-top: 16px;">
+                            <span class="group-title ai">AI Agent Layer (Strands SDK)</span>
+                            <div class="row">
+                                <div class="component cat-agent">
+                                    <span class="service-tag">Agent</span>
+                                    <div class="icon">
+                                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                                            <path d="M12 2l3 6h6l-5 4 2 6-6-4-6 4 2-6-5-4h6l3-6z" stroke="#FF9900" stroke-width="1.5" fill="none"/>
+                                        </svg>
+                                    </div>
+                                    <div class="name">Master Agent</div>
+                                    <div class="detail">Orchestrates SoP<br/>assess_severity<br/>activate_diagnosis<br/>activate_voice_call</div>
+                                </div>
+                                <div class="component cat-agent">
+                                    <span class="service-tag">Agent</span>
+                                    <div class="icon">
+                                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                                            <circle cx="12" cy="12" r="8" stroke="#FF9900" stroke-width="1.5" fill="none"/>
+                                            <path d="M9 9l6 6M15 9l-6 6" stroke="#FF9900" stroke-width="1.5" stroke-linecap="round"/>
+                                        </svg>
+                                    </div>
+                                    <div class="name">Diagnosis Agent</div>
+                                    <div class="detail">pull_logs<br/>check_health<br/>check_network<br/>check_recent_changes</div>
+                                </div>
+                                <div class="component cat-agent">
+                                    <span class="service-tag">Agent</span>
+                                    <div class="icon">
+                                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                                            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z" stroke="#FF9900" stroke-width="1.5" fill="none"/>
+                                            <path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3M8 22h8" stroke="#FF9900" stroke-width="1.5" stroke-linecap="round"/>
+                                        </svg>
+                                    </div>
+                                    <div class="name">Voice Router</div>
+                                    <div class="detail">Mode A: AgentCore<br/>Mode B: Direct Twilio<br/>Mode C: Browser<br/>Audio: mulaw/PCM</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Aurora -->
+                    <div class="group-box" style="margin-top: 16px;">
+                        <span class="group-title data">Aurora MySQL Serverless v2</span>
+                        <div class="row">
+                            <div class="component cat-database">
+                                <span class="service-tag">RDS</span>
+                                <div class="icon">
+                                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                                        <ellipse cx="12" cy="6" rx="7" ry="3" stroke="#3B48CC" stroke-width="1.5" fill="none"/>
+                                        <path d="M5 6v12c0 1.66 3.13 3 7 3s7-1.34 7-3V6" stroke="#3B48CC" stroke-width="1.5" fill="none"/>
+                                        <path d="M5 12c0 1.66 3.13 3 7 3s7-1.34 7-3" stroke="#3B48CC" stroke-width="1.5" fill="none"/>
+                                    </svg>
+                                </div>
+                                <div class="name">Aurora Cluster</div>
+                                <div class="detail">DB: operations<br/>0.5-1 ACU<br/>Port 3306<br/>Auto-credentials</div>
+                            </div>
+                            <div class="component cat-security">
+                                <span class="service-tag">SG</span>
+                                <div class="icon">
+                                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                                        <path d="M12 2l8 4v6c0 5.5-3.84 10.74-8 12-4.16-1.26-8-6.5-8-12V6l8-4z" stroke="#DD344C" stroke-width="1.5" fill="none"/>
+                                        <path d="M9 12l2 2 4-4" stroke="#DD344C" stroke-width="1.5" stroke-linecap="round"/>
+                                    </svg>
+                                </div>
+                                <div class="name">RDS Security Group</div>
+                                <div class="detail">TCP 3306 from ECS SG<br/>Revoke/Authorize<br/>= Break/Fix demo</div>
+                            </div>
+                            <div class="component cat-network">
+                                <span class="service-tag">NAT</span>
+                                <div class="icon">
+                                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                                        <rect x="4" y="8" width="16" height="8" rx="2" stroke="#8C4FFF" stroke-width="1.5" fill="none"/>
+                                        <path d="M8 12h8M14 9l3 3-3 3" stroke="#8C4FFF" stroke-width="1.5" stroke-linecap="round"/>
+                                    </svg>
+                                </div>
+                                <div class="name">NAT Gateway</div>
+                                <div class="detail">Outbound internet<br/>AWS API access<br/>Twilio REST calls</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Connection -->
+    <div class="connections">
+        <div class="conn-line">
+            <span class="conn-arrow">&#x25BC;</span>
+            <span class="conn-label">InvokeModel / BidirectionalStream / SigV4 WebSocket</span>
+            <span class="conn-arrow">&#x25BC;</span>
+        </div>
+    </div>
+
+    <!-- Layer 4: AI & ML -->
+    <div class="layer">
+        <span class="layer-label">AI/ML</span>
+        <div class="layer-content">
+            <div class="row">
+                <div class="component cat-ai">
+                    <span class="service-tag">Bedrock</span>
+                    <div class="icon">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                            <path d="M12 2L4 6v6l8 4 8-4V6l-8-4z" stroke="#01A88D" stroke-width="1.5" fill="none"/>
+                            <path d="M4 6l8 4M12 10v10M20 6l-8 4" stroke="#01A88D" stroke-width="1"/>
+                            <circle cx="12" cy="10" r="2" fill="#01A88D"/>
+                        </svg>
+                    </div>
+                    <div class="name">Claude Sonnet 4.6</div>
+                    <div class="detail">eu-west-1<br/>Master + Diagnosis<br/>agents reasoning</div>
+                </div>
+                <div class="component cat-ai">
+                    <span class="service-tag">Bedrock</span>
+                    <div class="icon">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z" stroke="#01A88D" stroke-width="1.5" fill="none"/>
+                            <path d="M19 10v2a7 7 0 0 1-14 0v-2" stroke="#01A88D" stroke-width="1.5" stroke-linecap="round"/>
+                            <path d="M12 19v3" stroke="#01A88D" stroke-width="1.5" stroke-linecap="round"/>
+                        </svg>
+                    </div>
+                    <div class="name">Nova Sonic v1</div>
+                    <div class="detail">us-east-1<br/>Bidirectional voice<br/>Speech-to-speech AI</div>
+                </div>
+                <div class="component cat-ai">
+                    <span class="service-tag">AgentCore</span>
+                    <div class="icon">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                            <rect x="4" y="4" width="16" height="16" rx="3" stroke="#01A88D" stroke-width="1.5" fill="none"/>
+                            <circle cx="9" cy="9" r="2" fill="#01A88D"/>
+                            <circle cx="15" cy="9" r="2" fill="#01A88D"/>
+                            <path d="M8 15c0-2 2-3 4-3s4 1 4 3" stroke="#01A88D" stroke-width="1.5" stroke-linecap="round"/>
+                        </svg>
+                    </div>
+                    <div class="name">AgentCore Runtime</div>
+                    <div class="detail">BidiAgent (Mode A)<br/>Managed Nova Sonic<br/>+ Tool execution</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Connection -->
+    <div class="connections">
+        <div class="conn-line">
+            <span class="conn-arrow">&#x25BC;</span>
+            <span class="conn-label">GetItem / PutItem / GetSecretValue / GetMetricData / StartQuery</span>
+            <span class="conn-arrow">&#x25BC;</span>
+        </div>
+    </div>
+
+    <!-- Layer 5: Data & Monitoring -->
+    <div class="layer">
+        <span class="layer-label">Data</span>
+        <div class="layer-content">
+            <div class="row">
+                <div class="component cat-database">
+                    <span class="service-tag">DynamoDB</span>
+                    <div class="icon">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                            <ellipse cx="12" cy="5" rx="6" ry="2.5" stroke="#3B48CC" stroke-width="1.5" fill="none"/>
+                            <path d="M6 5v14c0 1.38 2.69 2.5 6 2.5s6-1.12 6-2.5V5" stroke="#3B48CC" stroke-width="1.5" fill="none"/>
+                            <path d="M6 10c0 1.38 2.69 2.5 6 2.5s6-1.12 6-2.5" stroke="#3B48CC" stroke-width="1" fill="none"/>
+                            <path d="M6 15c0 1.38 2.69 2.5 6 2.5s6-1.12 6-2.5" stroke="#3B48CC" stroke-width="1" fill="none"/>
+                        </svg>
+                    </div>
+                    <div class="name">DynamoDB</div>
+                    <div class="detail">Single-table design<br/>State, incidents,<br/>prompts, config<br/>PAY_PER_REQUEST</div>
+                </div>
+                <div class="component cat-storage">
+                    <span class="service-tag">S3</span>
+                    <div class="icon">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                            <path d="M5 7l7-3 7 3v10l-7 3-7-3V7z" stroke="#3F8624" stroke-width="1.5" fill="none"/>
+                            <path d="M5 7l7 3 7-3M12 10v10" stroke="#3F8624" stroke-width="1.5"/>
+                        </svg>
+                    </div>
+                    <div class="name">S3 Raw Data</div>
+                    <div class="detail">Logs, snapshots<br/>Versioned + encrypted<br/>SSL enforced</div>
+                </div>
+                <div class="component cat-security">
+                    <span class="service-tag">Secrets</span>
+                    <div class="icon">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                            <rect x="5" y="11" width="14" height="9" rx="2" stroke="#DD344C" stroke-width="1.5" fill="none"/>
+                            <path d="M8 11V7a4 4 0 0 1 8 0v4" stroke="#DD344C" stroke-width="1.5"/>
+                            <circle cx="12" cy="15" r="1.5" fill="#DD344C"/>
+                        </svg>
+                    </div>
+                    <div class="name">Secrets Manager</div>
+                    <div class="detail">Twilio credentials<br/>RDS admin password<br/>API tokens</div>
+                </div>
+                <div class="component cat-monitoring">
+                    <span class="service-tag">CW</span>
+                    <div class="icon">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                            <circle cx="12" cy="12" r="8" stroke="#E7157B" stroke-width="1.5" fill="none"/>
+                            <path d="M12 7v5l3 3" stroke="#E7157B" stroke-width="1.5" stroke-linecap="round"/>
+                            <path d="M7 12h1M16 12h1M12 7v1M12 16v1" stroke="#E7157B" stroke-width="1"/>
+                        </svg>
+                    </div>
+                    <div class="name">CloudWatch</div>
+                    <div class="detail">Metrics: CPU, IOPS<br/>Logs Insights queries<br/>RDS + ECS logs</div>
+                </div>
+                <div class="component cat-security">
+                    <span class="service-tag">IAM</span>
+                    <div class="icon">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                            <circle cx="12" cy="8" r="4" stroke="#DD344C" stroke-width="1.5" fill="none"/>
+                            <path d="M4 20c0-4 4-6 8-6s8 2 8 6" stroke="#DD344C" stroke-width="1.5" stroke-linecap="round"/>
+                        </svg>
+                    </div>
+                    <div class="name">IAM Roles</div>
+                    <div class="detail">Task Role (Bedrock,<br/>EC2, RDS, CW, DDB)<br/>Least privilege</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Demo Flow Section -->
+<div class="flow-section">
+    <h2>Demo Flow Timeline (~3 minutes)</h2>
+    <div class="flow-timeline">
+        <div class="flow-step">
+            <div class="flow-dot">1</div>
+            <div class="flow-title">HEALTHY</div>
+            <div class="flow-desc">City is lit up, all services green, metrics normal</div>
+            <div class="flow-duration">Ongoing</div>
+        </div>
+        <div class="flow-step">
+            <div class="flow-dot">2</div>
+            <div class="flow-title">INCIDENT</div>
+            <div class="flow-desc">SG rule revoked, DB unreachable, city goes dark</div>
+            <div class="flow-duration">~2s</div>
+        </div>
+        <div class="flow-step">
+            <div class="flow-dot">3</div>
+            <div class="flow-title">DIAGNOSING</div>
+            <div class="flow-desc">Master + Diagnosis agents run tools, produce RCA</div>
+            <div class="flow-duration">~20-30s</div>
+        </div>
+        <div class="flow-step">
+            <div class="flow-dot">4</div>
+            <div class="flow-title">CALLING</div>
+            <div class="flow-desc">Nova Sonic calls DBA, passphrase auth, restore DB</div>
+            <div class="flow-duration">~30-90s</div>
+        </div>
+        <div class="flow-step">
+            <div class="flow-dot">5</div>
+            <div class="flow-title">RECOVERING</div>
+            <div class="flow-desc">SG rule restored, connectivity returns, metrics stabilize</div>
+            <div class="flow-duration">~3s</div>
+        </div>
+        <div class="flow-step">
+            <div class="flow-dot">6</div>
+            <div class="flow-title">RESOLVED</div>
+            <div class="flow-desc">City fully recovered, celebration, ready to loop</div>
+            <div class="flow-duration">~2s</div>
+        </div>
+    </div>
+</div>
+
+<!-- Footer -->
+<div class="footer">
+    Alert to Action &mdash; AI Operations Center &mdash; AWS Summit Milan 2026 (AI Village) &mdash; Powered by Amazon Bedrock, Nova Sonic, Strands Agents SDK
+</div>
+
+</body>
+</html>

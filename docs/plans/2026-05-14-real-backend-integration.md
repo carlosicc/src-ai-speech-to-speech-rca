@@ -120,7 +120,7 @@ aws ecs run-task \
 
 ---
 
-## Phase 4 — The "Break" Mechanism
+## Phase 4 — The "Break" Mechanism ✅ COMPLETED (2026-05-14)
 
 **What**: A controlled way to make the RDS cluster go down, detectable by the agents and visible in the UI.
 
@@ -154,41 +154,253 @@ aws ecs run-task \
 - Full end-to-end: Break → Detect → Diagnose → Call → Fix → Recover
 - Total loop time: ~3 minutes (matches demo cadence)
 
+**Implementation (Option 1 — Stop Cluster)**:
+- New module `src_backend/shared/rds_operations.py`: `stop_db_cluster()`, `start_db_cluster()`, `get_cluster_status()`
+- WebSocket handler: `break_database` message → calls `stop_db_cluster()` → triggers incident via demo_controller
+- Voice tool `restart_database`: now calls `start_db_cluster()` (real AWS) + advances phase to RECOVERING
+- Reset handler: also calls `start_db_cluster()` to ensure cluster recovers on demo reset
+- DevPanel: new "Break DB" button (AWS OPERATIONS section), disabled when not HEALTHY
+- Config: `RDS_CLUSTER_ID` and `RDS_REGION` added to `shared/config.py`
+- Tests: 18 new tests in `tests/unit/test_break_mechanism.py` (all passing)
+
+**Verified (live)**:
+- ECS service deployed and stable (1/1 running, rollout COMPLETED)
+- RDS cluster status: `available`
+- All 194 tests pass
+- Frontend builds and deploys cleanly (new "Break DB" button visible in DevPanel)
+
+**Files changed**:
+- `src_backend/shared/config.py` — added `RDS_CLUSTER_ID`, `RDS_REGION`
+- `src_backend/shared/rds_operations.py` — new module (stop/start/status)
+- `src_backend/websocket_server.py` — `break_database` handler + reset calls `start_db_cluster`
+- `src_backend/voice/voice_tools.py` — `_restart_database` now calls real `start_db_cluster()`
+- `src_frontend/app/src/components/DevPanel.tsx` — "Break DB" button in AWS OPERATIONS section
+- `tests/unit/test_break_mechanism.py` — 18 new tests
+
 ---
 
-## Phase 5 — CloudWatch Alarm Auto-Detection (Optional)
+## Phase 4.1 — Replace Stop/Start with Security Group "Break" (Supersedes Phase 4) ✅ COMPLETED (2026-05-14)
 
-**What**: Instead of clicking "Break DB" manually, let CloudWatch detect the failure and trigger the incident automatically.
+**Why**: `StopDBCluster` takes ~5 minutes to fully stop and ~3 minutes to start. This is unacceptable for a 3-minute demo loop. The audience would be watching a loading spinner.
 
-**Deliverables**:
-- CloudWatch Alarm (CDK): `aurora-db CPUUtilization = 0 for 1 datapoint`
-- SNS Topic → Lambda (tiny function, <20 lines)
-- Lambda calls backend `/api/trigger-incident` endpoint (new, token-protected)
-- Backend exposes `POST /api/trigger-incident` → calls `demo_controller.trigger_incident()`
+**New approach**: Remove the inbound MySQL rule from the RDS security group. This:
+- Takes effect **instantly** (< 1 second)
+- ECS tasks immediately lose connectivity → queries fail → CloudWatch metrics show 0 connections
+- Recovery = re-add the security group rule → also instant
+- Demo narrative: *"The agent detected a missing port configuration in the firewall, and restored it"*
 
-**Why optional**: For a booth demo, manual "Break DB" button is more reliable and lets the presenter control timing. Auto-detection adds realism but also adds lag (~60s for alarm to fire).
+### How It Works (End-to-End Flow)
 
-**Verification**:
-- Stop cluster manually via AWS Console
-- Within 90s, alarm fires → Lambda triggers → incident begins on UI automatically
+```
+1. Presenter clicks "Break DB"
+   └─→ Backend calls ec2:RevokeSecurityGroupIngress (removes TCP 3306 rule)
+   └─→ Backend immediately triggers incident (demo_controller.trigger_incident)
+
+2. Incident flow starts (phases: INCIDENT_DETECTED → DIAGNOSING → CALLING → ...)
+   └─→ Diagnosis agent runs tools:
+       a) check_network(service="aurora-db")  ← NEW TOOL
+          └─→ ec2:DescribeSecurityGroups → detects: "Inbound rule for port 3306 MISSING"
+       b) check_health(service="aurora-db")
+          └─→ rds:DescribeDBClusters → "Status: AVAILABLE" (DB is fine, just unreachable)
+          └─→ cloudwatch:GetMetricStatistics → "Connections: 0"
+       c) pull_logs(service="aurora-db")
+          └─→ May show connection timeout errors
+   └─→ Agent produces RCA: "Security group misconfiguration — port 3306 blocked"
+
+3. Voice call placed to DBA (Twilio Mode B)
+   └─→ Voice agent explains: "The database security group is missing port 3306 inbound rule.
+        I need your authorization to restore the firewall configuration."
+   └─→ DBA authenticates + says "restore the firewall" (or "fix it", "yes", etc.)
+
+4. Voice tool `restore_connectivity` triggered
+   └─→ ec2:AuthorizeSecurityGroupIngress (re-adds TCP 3306 rule) — INSTANT
+   └─→ Demo phase advances to RECOVERING → RESOLVED → HEALTHY
+   └─→ Metrics resume within next CloudWatch poll (~10s)
+```
+
+### Key Design Decisions
+
+| Question | Answer |
+|----------|--------|
+| What polls the DB? | **Backend** (`CloudWatchRdsMetrics` in `metrics/cloudwatch_rds.py`) polls CloudWatch every 10s. This runs server-side — does NOT require UI to be open. |
+| Does the UI need to be open to detect? | **No** — but in current design we don't auto-detect. The "Break DB" button both breaks AND triggers the incident immediately. Metrics are pushed over WebSocket. |
+| Which tools diagnose the issue? | **`check_network`** (new) + `check_health` + `pull_logs`. The new tool calls `ec2:DescribeSecurityGroups` to detect the missing rule. |
+| Do prompts need updating? | **Yes** — both diagnosis agent prompt (add "check network connectivity") and voice agent prompt (say "firewall rule" not "restart database"). |
+
+### Security Group Details
+
+| Resource | Value |
+|----------|-------|
+| RDS SG | `sg-XXXXXXXXXXXXXXXXX` (`rca-backend-sg-rds-dev01`) |
+| ECS SG (source) | `sg-YYYYYYYYYYYYYYYYY` |
+| Inbound rule | TCP 3306 from ECS SG, description: "MySQL from ECS tasks" |
+| VPC | `vpc-0ec863f18ae1127e4` |
+
+### Deliverables
+
+1. **Refactor `src_backend/shared/rds_operations.py`** → rename to `src_backend/shared/network_operations.py`:
+   - `revoke_db_access()`: calls `ec2:RevokeSecurityGroupIngress` to remove the 3306 rule
+   - `restore_db_access()`: calls `ec2:AuthorizeSecurityGroupIngress` to re-add the 3306 rule
+   - `check_sg_rule_exists()`: calls `ec2:DescribeSecurityGroups` → returns bool (is rule present?)
+   - Remove old `stop_db_cluster()` / `start_db_cluster()` functions
+
+2. **New diagnosis tool `check_network`** in `src_backend/agents/diagnosis_agent.py`:
+   - Calls `ec2:DescribeSecurityGroups` for the RDS SG
+   - Reports whether port 3306 inbound rule from ECS SG exists
+   - Returns clear message: "ALERT: Port 3306 inbound rule MISSING from security group" or "Network: OK, port 3306 rule present"
+
+3. **Update WebSocket `break_database` handler** in `websocket_server.py`:
+   - Calls `revoke_db_access()` instead of `stop_db_cluster()`
+   - Still triggers incident immediately via `demo_controller.trigger_incident("aurora-db")`
+
+4. **Rename voice tool `restart_database` → `restore_connectivity`** in `voice/voice_tools.py`:
+   - Calls `restore_db_access()` (re-adds SG rule) instead of `start_db_cluster()`
+   - Update tool description: "Restore network connectivity by re-adding the firewall rule"
+   - Update TOOL_SPECS name and description accordingly
+
+5. **Update `reset_demo` handler**:
+   - Calls `restore_db_access()` to ensure rule is always present after reset
+
+6. **CDK IAM changes** in `src_infra/stack_backend.py`:
+   - Add to ECS task role: `ec2:RevokeSecurityGroupIngress`, `ec2:AuthorizeSecurityGroupIngress`, `ec2:DescribeSecurityGroups`
+   - Scope to the RDS SG ARN: `arn:aws:ec2:eu-west-1:000000000000:security-group/sg-XXXXXXXXXXXXXXXXX`
+   - Pass new env vars to container: `RDS_SECURITY_GROUP_ID`, `ECS_SECURITY_GROUP_ID`
+
+7. **Update agent prompts** (DynamoDB seeds in `src_config/prompts/`):
+   - **Diagnosis agent**: Add "4. Check network connectivity and security group configuration" to investigation steps
+   - **Voice agent**: Change narrative from "restart database" to "restore the firewall configuration on port 3306"
+
+8. **Config additions** in `src_backend/shared/config.py`:
+   - `RDS_SECURITY_GROUP_ID` = `sg-XXXXXXXXXXXXXXXXX`
+   - `ECS_SECURITY_GROUP_ID` = `sg-YYYYYYYYYYYYYYYYY`
+   - Remove (or keep as fallback): `RDS_CLUSTER_ID`, `RDS_REGION`
+
+9. **Update tests** in `tests/unit/test_break_mechanism.py`:
+   - Replace stop/start mocks with revoke/authorize mocks
+   - Add tests for `check_network` tool
+   - Test SG rule detection (present/missing)
+   - Test voice tool calls `restore_db_access()`
+
+10. **Deploy and verify**: `cdk deploy --all --require-approval never`, run pytest, confirm instant cycle
+
+### Config (env vars needed in ECS container)
+
+```
+RDS_SECURITY_GROUP_ID=sg-XXXXXXXXXXXXXXXXX
+ECS_SECURITY_GROUP_ID=sg-YYYYYYYYYYYYYYYYY
+```
+
+### Recovery Flow (Detailed Timing)
+
+| Step | Action | Duration |
+|------|--------|----------|
+| 1 | Presenter clicks "Break DB" | 0s |
+| 2 | `RevokeSecurityGroupIngress` completes | < 1s |
+| 3 | Incident triggered, UI shows INCIDENT_DETECTED | < 1s |
+| 4 | Phase advances to DIAGNOSING, master agent runs | ~3s |
+| 5 | Diagnosis agent calls tools (check_network, check_health, pull_logs) | ~15-30s |
+| 6 | RCA produced, phase advances to CALLING | < 1s |
+| 7 | Twilio call placed to DBA phone | ~5s ring |
+| 8 | Voice conversation (auth + authorization) | ~30-45s |
+| 9 | DBA says "fix it" → `restore_db_access()` called | < 1s |
+| 10 | Phase advances to RECOVERING → RESOLVED → HEALTHY | ~8s |
+| **Total** | | **~90-120s** |
+
+### Verification
+
+- Break: rule removed → `aws ec2 describe-security-groups --group-ids sg-XXXXXXXXXXXXXXXXX` shows empty `IpPermissions`
+- Fix: rule re-added → shows TCP 3306 from sg-YYYYYYYYYYYYYYYYY
+- Full end-to-end cycle under 2 minutes
+- Run 3 consecutive loops with no manual intervention between them
 
 ---
 
-## Phase 6 — Polish & Demo Hardening
+## Phase 4.2 — UI Polish (DevPanel Defaults + Toggle Button) ✅ COMPLETED (2026-05-14)
+
+**What**: Three small UI/UX changes to improve the demo presenter experience.
+
+### Deliverables
+
+1. **Auto Advance defaults to OFF**
+   - Backend: Change `auto_advance: bool = True` → `False` in `src_backend/shared/state.py`
+   - CDK container env: no change needed (state default is authoritative)
+   - Frontend: `DevPanel.tsx` — ensure the toggle reflects backend state on connect (already does via `system_status` message)
+   - Why: Presenter wants manual control during the demo; auto-advance can be toggled on if desired
+
+2. **Voice Mode defaults to Mode B (Twilio)**
+   - Backend: Change `DEFAULT_VOICE_MODE` default from `"mode_c"` to `"mode_b"` in `src_backend/shared/config.py`
+   - CDK container env: Change `DEFAULT_VOICE_MODE` from `"mode_c"` to `"mode_b"` in `src_infra/stack_backend.py`
+   - Frontend: Change initial `useState("mode_c")` → `useState("mode_b")` in `DevPanel.tsx`
+   - Why: The real demo uses a phone call (Mode B); Mode C is only for local testing
+
+3. **DevPanel toggle button visible in the UI**
+   - Add a small gear/cog icon button (fixed position, bottom-right corner) that toggles DevPanel visibility
+   - Same behaviour as Ctrl+D — just a clickable alternative
+   - Use a subtle, semi-transparent style so it doesn't distract from the demo visuals
+   - Component: add the button in `DevPanel.tsx` (render it even when `visible=false`)
+
+4. **Fix missing character in S3 Storage room**
+   - Bug: `CityScene.ts:119` assigns characters with `const room = i % ROOMS.length` — 6 characters, 7 rooms, so room index 6 (`s3-storage`) never gets one
+   - Fix: Add a 7th character to `CHARACTERS` array in `src_frontend/app/src/engine/config.ts`
+   - This ensures every room has at least one animated NPC
+
+### Files Changed
+
+| File | Change |
+|------|--------|
+| `src_backend/shared/state.py` | `auto_advance: bool = False` |
+| `src_backend/shared/config.py` | `DEFAULT_VOICE_MODE` default → `"mode_b"` |
+| `src_infra/stack_backend.py` | Container env `DEFAULT_VOICE_MODE` → `"mode_b"` |
+| `src_frontend/app/src/components/DevPanel.tsx` | Default voice mode `"mode_b"`, gear toggle button (always rendered) |
+| `src_frontend/app/src/engine/config.ts` | Added 7th character: `citizen-7`, color `#e59866`, speed `0.35` |
+| `src_frontend/app/src/store/sceneStore.ts` | `autoAdvance: false` initial value |
+| `src_frontend/app/src/styles/theme.css` | `.dev-panel-toggle` CSS (32px circle, fixed bottom-right, semi-transparent) |
+| `tests/unit/test_break_mechanism.py` | Fixture uses `demo_state.voice_mode = "mode_b"` |
+
+### Verified (live)
+
+- Gear button visible bottom-right, clicking toggles DevPanel, Ctrl+D still works
+- Voice Mode B highlighted by default in DevPanel
+- Auto Advance defaults to OFF on fresh ECS task start
+- S3 Storage room has a character walking around
+- All 54 tests pass (23 break mechanism + 31 backend/stack)
+- Frontend builds clean, both stacks deployed
+- ECS 1/1 running, rollout COMPLETED
+
+---
+
+## Phase 6 — Polish & Demo Hardening ✅ COMPLETED (2026-05-14)
 
 **What**: Make the full real flow reliable for repeated demos.
 
 **Deliverables**:
-- **Fast reset**: Reset button also calls `StartDBCluster` if cluster is stopped
-- **Pre-check**: On app startup, verify RDS cluster is `available` — log warning if not
-- **Cost control**: Auto-stop cluster after 30 min of inactivity (EventBridge rule)
-- **Demo script**: Step-by-step guide for presenter in `docs/demo-script.md`
-- **Timeout tuning**: Adjust phase durations for real AWS latency (~30s stop, ~60s start)
-- **Error display**: If agent tool gets a real AWS error, show it in the log panel (educational for audience)
+- **Fast reset**: Reset handler calls `restore_db_access()` with confirmation logging ✅
+- **Pre-check**: On app startup (`lifespan`), verify SG rule exists — auto-restore if missing ✅
+- **Phase timing**: Tuned PHASE_DURATIONS (INCIDENT_DETECTED: 2s, RECOVERING: 3s, RESOLVED: 2s) ✅
+- **Error display**: AWS errors from diagnosis tools broadcast to `agent_log` via `_broadcast_aws_error()` ✅
+- **Idempotency**: Both revoke and restore handle duplicate errors; integration tests verify double-call ✅
+- **Demo script**: `docs/demo-script.md` — presenter guide with pre-checklist, 3-min loop, recovery tips ✅
+- **5-loop reliability**: `tests/integration/test_demo_loop.py` — 5 consecutive loops pass in <30s each ✅
+
+**Files changed**:
+- `src_backend/main.py` — startup pre-check (SG rule verification + auto-restore)
+- `src_backend/demo_controller.py` — tuned PHASE_DURATIONS + wired `set_diagnosis_broadcast`
+- `src_backend/websocket_server.py` — enhanced reset log message
+- `src_backend/agents/diagnosis_agent.py` — `_broadcast_aws_error()` + `set_diagnosis_broadcast()`
+- `src_backend/voice/voice_tools.py` — broadcast error on restore_connectivity failure
+- `tests/unit/test_break_mechanism.py` — added `TestIdempotency` class (revoke×2, restore×2)
+- `tests/unit/test_phase3.py` — fixed stale `restart_database` tests → `restore_connectivity`
+- `tests/integration/test_demo_loop.py` — 5-loop reliability test
+- `docs/demo-script.md` — presenter guide
+
+**Verified**:
+- All 204 tests pass
+- Frontend builds clean
+- ECS service deployed and stable
 
 **Verification**:
 - Run 5 consecutive demo loops without manual intervention between them
-- Each loop: healthy → break → detect → diagnose → call → fix → recover → healthy
+- Each loop: healthy → break → diagnose → call → fix → recover → healthy (under 2 min each)
 
 ---
 
@@ -211,10 +423,12 @@ aws ecs run-task \
 │  └──────────────┘  └──────┬──────┘  └───────┬───────┘  │
 │                            │                  │          │
 │  Real AWS Tools:           │     Twilio Call: │          │
-│  - rds:Describe*           │     - Mode B    │          │
+│  - ec2:DescribeSecGroups   │     - Mode B    │          │
+│  - ec2:RevokeIngress       │                  │          │
+│  - ec2:AuthorizeIngress    │                  │          │
+│  - rds:Describe*           │                  │          │
 │  - cloudwatch:GetMetric*   │                  │          │
 │  - logs:StartQuery         │                  │          │
-│  - rds:StartDBCluster      │                  │          │
 └────────────────────────────┼──────────────────┼──────────┘
                              │                  │
               ┌──────────────▼───┐    ┌─────────▼─────────┐
@@ -222,12 +436,20 @@ aws ecs run-task \
               │  (Serverless v2) │    │  (real call)       │
               │  0.5-1 ACU       │    └───────────────────┘
               └──────────────────┘
-                       │
-              ┌────────▼─────────┐
-              │  CloudWatch      │
-              │  Metrics + Logs  │
-              │  + Alarms        │
-              └──────────────────┘
+              ▲                 │
+              │ TCP 3306        │
+    ┌─────────┴──────────┐     │
+    │  Security Group     │     │
+    │  (rca-backend-sg-   │     │
+    │   rds-dev01)        │     │
+    │  ← BREAK: revoke   │     │
+    │  ← FIX: authorize  │     │
+    └─────────────────────┘     │
+                                │
+              ┌─────────────────▼─┐
+              │  CloudWatch        │
+              │  Metrics + Logs    │
+              └────────────────────┘
 ```
 
 ---
@@ -249,16 +471,19 @@ aws ecs run-task \
 ```
 Phase 1 (RDS) ✅ ──→ Phase 2 (Metrics) ✅ ──→ Phase 3 (Agent Tools) ✅
                                                        │
-                                            Phase 4 (Break) ──→ Phase 5 (Auto-Detect)
+                                            Phase 4 (Stop/Start) ✅ [SUPERSEDED]
                                                        │
-                                            Phase 6 (Polish)
+                                            Phase 4.1 (SG Break) ✅ ──→ Phase 4.2 (UI Polish) ✅ ──→ Phase 6 (Polish)
 ```
 
-Phases 1→2→3→4 are sequential (each depends on the prior).  
-Phase 5 is optional and independent of Phase 6.  
-Phase 6 can start after Phase 4.
+Phases 1→2→3 are sequential (each depends on the prior).  
+Phase 4 (stop/start) is superseded by Phase 4.1 (SG break) — faster, more reliable.  
+Phase 4.1 (SG break/fix) is deployed and working — instant break/fix cycle.  
+Phase 4.2 (UI polish) is deployed — defaults, toggle button, S3 character.  
+Phase 5 (auto-detect via CloudWatch alarm) is dropped — not needed since the button triggers the incident immediately.  
+Phase 6 (polish) follows after Phase 4.2.
 
-**Current status**: Phases 1–3 complete. Phase 4 is next — implement the "Break DB" mechanism (StopDBCluster button + real recovery via StartDBCluster).
+**Current status**: Phases 1–4.2 complete. **Phase 6 (Polish & Demo Hardening) is next** — fast reset with pre-check, idempotent operations, cost control, demo script, error display, and 5-loop reliability testing.
 
 ---
 

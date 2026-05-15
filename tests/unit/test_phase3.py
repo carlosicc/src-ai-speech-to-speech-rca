@@ -30,7 +30,7 @@ class TestVoiceTools:
     def test_tool_specs_structure(self):
         assert len(TOOL_SPECS) == 3
         names = {t["toolSpec"]["name"] for t in TOOL_SPECS}
-        assert names == {"authenticate_user", "restart_database", "check_service_health"}
+        assert names == {"authenticate_user", "restore_connectivity", "check_service_health"}
 
     def test_tool_specs_have_valid_json_schemas(self):
         for spec in TOOL_SPECS:
@@ -61,20 +61,32 @@ class TestVoiceTools:
         assert result["status"] == "failed"
 
     @pytest.mark.asyncio
-    async def test_restart_database_during_calling(self):
+    async def test_restore_connectivity_during_calling(self):
         demo_state.trigger_incident("aurora-db")
         demo_state.phase = Phase.CALLING
-        result = await execute_tool("restart_database", {"service": "aurora-db"})
-        assert result["status"] == "success"
-        assert demo_state.phase == Phase.RECOVERING
+
+        with patch("shared.network_operations._get_ec2_client") as mock_get_client:
+            mock_client = MagicMock()
+            mock_client.authorize_security_group_ingress = MagicMock(return_value={})
+            mock_get_client.return_value = mock_client
+
+            result = await execute_tool("restore_connectivity", {"service": "aurora-db"})
+            assert result["status"] == "success"
+            assert demo_state.phase == Phase.RECOVERING
 
     @pytest.mark.asyncio
-    async def test_restart_database_not_calling(self):
+    async def test_restore_connectivity_not_calling(self):
         demo_state.trigger_incident("aurora-db")
         demo_state.phase = Phase.DIAGNOSING
-        result = await execute_tool("restart_database", {"service": "aurora-db"})
-        assert result["status"] == "success"
-        assert demo_state.phase == Phase.DIAGNOSING
+
+        with patch("shared.network_operations._get_ec2_client") as mock_get_client:
+            mock_client = MagicMock()
+            mock_client.authorize_security_group_ingress = MagicMock(return_value={})
+            mock_get_client.return_value = mock_client
+
+            result = await execute_tool("restore_connectivity", {"service": "aurora-db"})
+            assert result["status"] == "success"
+            assert demo_state.phase == Phase.DIAGNOSING
 
     def test_check_service_health_during_incident(self):
         demo_state.trigger_incident("aurora-db")

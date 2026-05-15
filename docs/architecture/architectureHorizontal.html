@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alert to Action - Architecture (Horizontal)</title>
+    <style>
+        :root {
+            --aws-dark: #232F3E;
+            --aws-orange: #FF9900;
+            --aws-compute: #ED7100;
+            --aws-database: #3B48CC;
+            --aws-network: #8C4FFF;
+            --aws-storage: #3F8624;
+            --aws-ai: #01A88D;
+            --aws-security: #DD344C;
+            --aws-monitoring: #E7157B;
+            --aws-blue: #527FFF;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Amazon Ember', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #FFFFFF;
+            color: #232F3E;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Top bar */
+        .top-bar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 24px;
+            border-bottom: 1px solid #E8E8E8;
+            flex-shrink: 0;
+        }
+
+        .aws-logo {
+            background: var(--aws-dark);
+            color: white;
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 4px 8px;
+            border-radius: 2px;
+            letter-spacing: 1px;
+        }
+
+        .top-bar h1 {
+            font-size: 1rem;
+            font-weight: 400;
+            color: #545B64;
+        }
+
+        .top-bar h1 strong {
+            color: var(--aws-dark);
+            font-weight: 700;
+        }
+
+        .top-bar .subtitle {
+            margin-left: auto;
+            font-size: 0.7rem;
+            color: #879596;
+        }
+
+        /* Main canvas */
+        .canvas {
+            flex: 1;
+            padding: 16px 24px;
+            display: grid;
+            grid-template-columns: 120px 1fr;
+            grid-template-rows: 1fr;
+            gap: 16px;
+            min-height: 0;
+        }
+
+        /* Left: External actors */
+        .actors {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 20px;
+            padding-right: 12px;
+            border-right: 1px solid #E8E8E8;
+        }
+
+        .actor {
+            text-align: center;
+        }
+
+        .actor-icon {
+            width: 44px;
+            height: 44px;
+            margin: 0 auto 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .actor-name {
+            font-size: 0.65rem;
+            font-weight: 600;
+            color: var(--aws-dark);
+            line-height: 1.2;
+        }
+
+        /* Right: AWS Cloud area */
+        .cloud-area {
+            border: 2px solid var(--aws-dark);
+            border-radius: 4px;
+            position: relative;
+            padding: 28px 16px 12px;
+            display: grid;
+            grid-template-columns: 1fr 1.8fr 1.2fr 1.2fr;
+            gap: 12px;
+            min-height: 0;
+        }
+
+        .cloud-area::before {
+            content: 'AWS Cloud (eu-west-1)';
+            position: absolute;
+            top: -1px;
+            left: 12px;
+            background: white;
+            padding: 0 8px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--aws-dark);
+            transform: translateY(-50%);
+        }
+
+        /* Sections within cloud */
+        .section {
+            border: 1.5px dashed #D5DBDB;
+            border-radius: 4px;
+            padding: 24px 10px 10px;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .section-title {
+            position: absolute;
+            top: -1px;
+            left: 10px;
+            transform: translateY(-50%);
+            background: white;
+            padding: 0 6px;
+            font-size: 0.6rem;
+            font-weight: 600;
+            color: #545B64;
+            white-space: nowrap;
+        }
+
+        .section.vpc {
+            border-color: var(--aws-network);
+            border-style: solid;
+        }
+
+        .section.vpc .section-title { color: var(--aws-network); }
+
+        .section.ai-layer {
+            border-color: var(--aws-ai);
+        }
+
+        .section.ai-layer .section-title { color: var(--aws-ai); }
+
+        .section.data-layer {
+            border-color: var(--aws-database);
+        }
+
+        .section.data-layer .section-title { color: var(--aws-database); }
+
+        /* Service component */
+        .svc {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            min-width: 70px;
+        }
+
+        .svc-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .svc-icon svg {
+            width: 28px;
+            height: 28px;
+        }
+
+        .svc-name {
+            font-size: 0.6rem;
+            font-weight: 600;
+            color: var(--aws-dark);
+            text-align: center;
+            line-height: 1.2;
+        }
+
+        .svc-detail {
+            font-size: 0.5rem;
+            color: #879596;
+            text-align: center;
+            line-height: 1.3;
+        }
+
+        /* Icon backgrounds by category */
+        .icon-compute { background: var(--aws-compute); }
+        .icon-database { background: var(--aws-database); }
+        .icon-network { background: var(--aws-network); }
+        .icon-storage { background: var(--aws-storage); }
+        .icon-ai { background: var(--aws-ai); }
+        .icon-security { background: var(--aws-security); }
+        .icon-monitoring { background: var(--aws-monitoring); }
+        .icon-external { background: var(--aws-blue); }
+        .icon-agent { background: var(--aws-orange); }
+
+        .svc-icon svg path, .svc-icon svg circle, .svc-icon svg rect, .svc-icon svg ellipse, .svc-icon svg polygon {
+            stroke: white;
+            fill: none;
+        }
+
+        .svc-icon svg .filled { fill: white; stroke: none; }
+
+        /* Numbered step badges */
+        .step-num {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: var(--aws-dark);
+            color: white;
+            font-size: 0.6rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: absolute;
+            z-index: 10;
+        }
+
+        /* Rows and grids within sections */
+        .svc-row {
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .svc-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            width: 100%;
+            justify-items: center;
+        }
+
+        .svc-grid-3 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            width: 100%;
+            justify-items: center;
+        }
+
+        /* Arrows */
+        .arrow-h {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--aws-dark);
+            font-size: 1rem;
+            padding: 0 2px;
+        }
+
+        .arrow-label {
+            font-size: 0.5rem;
+            color: #879596;
+            text-align: center;
+            position: absolute;
+        }
+
+        /* Connection overlays */
+        .connections-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        /* Sub-sections */
+        .sub-section {
+            border: 1px solid #E8E8E8;
+            border-radius: 3px;
+            padding: 16px 6px 6px;
+            position: relative;
+            width: 100%;
+        }
+
+        .sub-section-title {
+            position: absolute;
+            top: -1px;
+            left: 8px;
+            transform: translateY(-50%);
+            background: white;
+            padding: 0 4px;
+            font-size: 0.5rem;
+            font-weight: 600;
+            color: #879596;
+            white-space: nowrap;
+        }
+
+        /* Bottom flow bar */
+        .flow-bar {
+            flex-shrink: 0;
+            padding: 10px 24px;
+            border-top: 1px solid #E8E8E8;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            background: #FAFAFA;
+        }
+
+        .flow-step {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .flow-badge {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.55rem;
+            font-weight: 700;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .flow-text {
+            font-size: 0.6rem;
+            color: var(--aws-dark);
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        .flow-arrow {
+            color: #D5DBDB;
+            font-size: 0.8rem;
+            margin: 0 2px;
+        }
+
+        .fb-1 { background: var(--aws-storage); }
+        .fb-2 { background: var(--aws-security); }
+        .fb-3 { background: var(--aws-ai); }
+        .fb-4 { background: var(--aws-orange); }
+        .fb-5 { background: var(--aws-ai); }
+        .fb-6 { background: var(--aws-storage); }
+    </style>
+</head>
+<body>
+
+<!-- Top Bar -->
+<div class="top-bar">
+    <span class="aws-logo">aws</span>
+    <h1><strong>Alert to Action</strong> &mdash; AI Operations Center</h1>
+    <span class="subtitle">AWS Summit Milan 2026 &bull; AI Village</span>
+</div>
+
+<!-- Main Canvas -->
+<div class="canvas">
+
+    <!-- Left: External Actors -->
+    <div class="actors">
+        <div class="actor">
+            <div class="actor-icon">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
+                    <rect x="3" y="4" width="14" height="10" rx="1" stroke="#232F3E" stroke-width="1.5"/>
+                    <path d="M6 17h8M10 14v3" stroke="#232F3E" stroke-width="1.5"/>
+                </svg>
+            </div>
+            <div class="actor-name">Booth Visitor<br/>(Browser)</div>
+        </div>
+        <div class="actor">
+            <div class="actor-icon">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
+                    <rect x="7" y="2" width="10" height="20" rx="2" stroke="#232F3E" stroke-width="1.5"/>
+                    <circle cx="12" cy="18" r="1" fill="#232F3E"/>
+                </svg>
+            </div>
+            <div class="actor-name">On-Call DBA<br/>(Phone)</div>
+        </div>
+        <div class="actor">
+            <div class="actor-icon">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="9" stroke="#527FFF" stroke-width="1.5"/>
+                    <path d="M12 3c3 3 4 6 4 9s-1 6-4 9M12 3c-3 3-4 6-4 9s1 6 4 9M3 12h18" stroke="#527FFF" stroke-width="1.2"/>
+                </svg>
+            </div>
+            <div class="actor-name">Twilio<br/>(Voice)</div>
+        </div>
+    </div>
+
+    <!-- AWS Cloud -->
+    <div class="cloud-area">
+
+        <!-- Column 1: Edge & Network -->
+        <div class="section vpc">
+            <span class="section-title">Edge & Network</span>
+            <div class="svc">
+                <div class="svc-icon icon-network">
+                    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7" stroke-width="1.5"/><path d="M12 5c2 2 3 4.5 3 7s-1 5-3 7M12 5c-2 2-3 4.5-3 7s1 5 3 7M5 12h14" stroke-width="1.2"/></svg>
+                </div>
+                <div class="svc-name">CloudFront</div>
+                <div class="svc-detail">CDN + Basic Auth</div>
+            </div>
+            <div class="svc">
+                <div class="svc-icon icon-network">
+                    <svg viewBox="0 0 24 24"><rect x="5" y="8" width="14" height="8" rx="2" stroke-width="1.5"/><path d="M12 4v4M8 4h8M12 16v4M8 20h8" stroke-width="1.5"/></svg>
+                </div>
+                <div class="svc-name">NLB</div>
+                <div class="svc-detail">TLS :443 &#x2192; :8080</div>
+            </div>
+            <div class="svc">
+                <div class="svc-icon icon-storage">
+                    <svg viewBox="0 0 24 24"><path d="M5 7l7-3 7 3v10l-7 3-7-3V7z" stroke-width="1.5"/><path d="M5 7l7 3 7-3M12 10v10" stroke-width="1.2"/></svg>
+                </div>
+                <div class="svc-name">S3</div>
+                <div class="svc-detail">Frontend hosting</div>
+            </div>
+            <div class="svc">
+                <div class="svc-icon icon-network">
+                    <svg viewBox="0 0 24 24"><rect x="5" y="9" width="14" height="6" rx="2" stroke-width="1.5"/><path d="M9 12h6M13 10l2 2-2 2" stroke-width="1.3" stroke-linecap="round"/></svg>
+                </div>
+                <div class="svc-name">NAT GW</div>
+                <div class="svc-detail">Outbound egress</div>
+            </div>
+        </div>
+
+        <!-- Column 2: Compute (ECS + Agents) + Aurora (separate) -->
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+
+            <!-- ECS Fargate section -->
+            <div class="section vpc" style="border-color: var(--aws-compute); padding-top: 28px; flex: 1;">
+                <span class="section-title" style="color: var(--aws-compute);">ECS Fargate (VPC Private Subnets)</span>
+
+                <!-- Top row: infra services -->
+                <div class="svc-grid-3">
+                    <div class="svc">
+                        <div class="svc-icon icon-compute">
+                            <svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3" stroke-width="1.5"/><path d="M8 12h8M12 8v8" stroke-width="1.5" stroke-linecap="round"/></svg>
+                        </div>
+                        <div class="svc-name">WebSocket<br/>Server</div>
+                        <div class="svc-detail">FastAPI :8080</div>
+                    </div>
+                    <div class="svc">
+                        <div class="svc-icon icon-compute">
+                            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7" stroke-width="1.5"/><path d="M12 8v4l3 2" stroke-width="1.5" stroke-linecap="round"/></svg>
+                        </div>
+                        <div class="svc-name">Incident<br/>Orchestrator</div>
+                        <div class="svc-detail">Automated response</div>
+                    </div>
+                    <div class="svc">
+                        <div class="svc-icon icon-compute">
+                            <svg viewBox="0 0 24 24"><path d="M3 12h3l2-6 4 12 2-6h3" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        </div>
+                        <div class="svc-name">Real-Time<br/>Metrics</div>
+                        <div class="svc-detail">Live dashboards</div>
+                    </div>
+                </div>
+
+                <!-- Agent sub-section -->
+                <div class="sub-section">
+                    <span class="sub-section-title">AI Agents (Strands SDK)</span>
+                    <div class="svc-grid-3">
+                        <div class="svc">
+                            <div class="svc-icon icon-agent">
+                                <svg viewBox="0 0 24 24"><path d="M12 3l2.5 5h5.5l-4.5 3.5 1.5 5.5-5-3.5-5 3.5 1.5-5.5L4 8h5.5z" stroke-width="1.3"/></svg>
+                            </div>
+                            <div class="svc-name">Master Agent</div>
+                            <div class="svc-detail">Orchestration + SoP</div>
+                        </div>
+                        <div class="svc">
+                            <div class="svc-icon icon-agent">
+                                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7" stroke-width="1.5"/><path d="M9 9l6 6M15 9l-6 6" stroke-width="1.5" stroke-linecap="round"/></svg>
+                            </div>
+                            <div class="svc-name">Diagnosis Agent</div>
+                            <div class="svc-detail">Logs, health, RCA</div>
+                        </div>
+                        <div class="svc">
+                            <div class="svc-icon icon-agent">
+                                <svg viewBox="0 0 24 24"><path d="M12 3a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z" stroke-width="1.3"/><path d="M17 10v1a5 5 0 0 1-10 0v-1M12 17v3M9 20h6" stroke-width="1.3" stroke-linecap="round"/></svg>
+                            </div>
+                            <div class="svc-name">Voice Router</div>
+                            <div class="svc-detail">Modes A / B / C</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Aurora MySQL - separate from ECS -->
+            <div class="section vpc" style="border-color: var(--aws-database); padding-top: 22px;">
+                <span class="section-title" style="color: var(--aws-database);">Aurora MySQL (VPC Private Subnets)</span>
+                <div class="svc-row">
+                    <div class="svc">
+                        <div class="svc-icon icon-database">
+                            <svg viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="6" ry="2.5" stroke-width="1.5"/><path d="M6 6v12c0 1.38 2.69 2.5 6 2.5s6-1.12 6-2.5V6" stroke-width="1.5"/><path d="M6 12c0 1.38 2.69 2.5 6 2.5s6-1.12 6-2.5" stroke-width="1"/></svg>
+                        </div>
+                        <div class="svc-name">Aurora Cluster</div>
+                        <div class="svc-detail">Serverless v2<br/>0.5-1 ACU</div>
+                    </div>
+                    <div class="svc">
+                        <div class="svc-icon icon-security">
+                            <svg viewBox="0 0 24 24"><path d="M12 3l7 3.5v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10v-5L12 3z" stroke-width="1.5"/><path d="M9 12l2 2 4-4" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        </div>
+                        <div class="svc-name">Security Group</div>
+                        <div class="svc-detail">Break / Fix<br/>Port 3306</div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Column 3: AI / ML -->
+        <div class="section ai-layer">
+            <span class="section-title">Amazon Bedrock (AI/ML)</span>
+            <div class="svc">
+                <div class="svc-icon icon-ai">
+                    <svg viewBox="0 0 24 24"><path d="M12 3L5 7v6l7 4 7-4V7l-7-4z" stroke-width="1.5"/><path d="M5 7l7 4M12 11v9M19 7l-7 4" stroke-width="1"/><circle cx="12" cy="11" r="2" class="filled"/></svg>
+                </div>
+                <div class="svc-name">Claude Sonnet 4.6</div>
+                <div class="svc-detail">Agent reasoning<br/>(eu-west-1)</div>
+            </div>
+            <div class="svc">
+                <div class="svc-icon icon-ai">
+                    <svg viewBox="0 0 24 24"><path d="M12 3a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z" stroke-width="1.3"/><path d="M17 10v1a5 5 0 0 1-10 0v-1" stroke-width="1.3" stroke-linecap="round"/><path d="M12 17v3M9 20h6" stroke-width="1.3" stroke-linecap="round"/></svg>
+                </div>
+                <div class="svc-name">Nova Sonic v1</div>
+                <div class="svc-detail">Speech-to-speech<br/>Bidirectional (us-east-1)</div>
+            </div>
+            <div class="svc">
+                <div class="svc-icon icon-ai">
+                    <svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3" stroke-width="1.5"/><circle cx="9" cy="9" r="1.5" class="filled"/><circle cx="15" cy="9" r="1.5" class="filled"/><path d="M8 15c0-2 2-3 4-3s4 1 4 3" stroke-width="1.3" stroke-linecap="round"/></svg>
+                </div>
+                <div class="svc-name">AgentCore</div>
+                <div class="svc-detail">BidiAgent Runtime<br/>(Mode A voice)</div>
+            </div>
+        </div>
+
+        <!-- Column 4: Data & Monitoring -->
+        <div class="section data-layer">
+            <span class="section-title">Data, Monitoring & Security</span>
+            <div class="svc">
+                <div class="svc-icon icon-database">
+                    <svg viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="6" ry="2.5" stroke-width="1.5"/><path d="M6 6v12c0 1.38 2.69 2.5 6 2.5s6-1.12 6-2.5V6" stroke-width="1.5"/><path d="M6 10c0 1.38 2.69 2.5 6 2.5s6-1.12 6-2.5" stroke-width="1"/><path d="M6 14c0 1.38 2.69 2.5 6 2.5s6-1.12 6-2.5" stroke-width="1"/></svg>
+                </div>
+                <div class="svc-name">DynamoDB</div>
+                <div class="svc-detail">Single-table design<br/>State & events</div>
+            </div>
+            <div class="svc">
+                <div class="svc-icon icon-storage">
+                    <svg viewBox="0 0 24 24"><path d="M5 7l7-3 7 3v10l-7 3-7-3V7z" stroke-width="1.5"/><path d="M5 7l7 3 7-3M12 10v10" stroke-width="1.2"/></svg>
+                </div>
+                <div class="svc-name">S3 Raw Data</div>
+                <div class="svc-detail">Logs & snapshots<br/>Encrypted</div>
+            </div>
+            <div class="svc">
+                <div class="svc-icon icon-monitoring">
+                    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7" stroke-width="1.5"/><path d="M12 8v4l2.5 2.5" stroke-width="1.5" stroke-linecap="round"/></svg>
+                </div>
+                <div class="svc-name">CloudWatch</div>
+                <div class="svc-detail">Metrics + Logs<br/>Insights queries</div>
+            </div>
+            <div class="svc">
+                <div class="svc-icon icon-security">
+                    <svg viewBox="0 0 24 24"><rect x="6" y="11" width="12" height="8" rx="1.5" stroke-width="1.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3" stroke-width="1.5"/><circle cx="12" cy="15" r="1.5" class="filled"/></svg>
+                </div>
+                <div class="svc-name">Secrets Manager</div>
+                <div class="svc-detail">Twilio + RDS<br/>credentials</div>
+            </div>
+        </div>
+
+    </div><!-- /cloud-area -->
+</div><!-- /canvas -->
+
+<!-- Bottom Flow Bar -->
+<div class="flow-bar">
+    <div class="flow-step">
+        <div class="flow-badge fb-1">1</div>
+        <span class="flow-text">Healthy</span>
+    </div>
+    <span class="flow-arrow">&#x25B6;</span>
+    <div class="flow-step">
+        <div class="flow-badge fb-2">2</div>
+        <span class="flow-text">SG Revoked</span>
+    </div>
+    <span class="flow-arrow">&#x25B6;</span>
+    <div class="flow-step">
+        <div class="flow-badge fb-3">3</div>
+        <span class="flow-text">AI Diagnosis</span>
+    </div>
+    <span class="flow-arrow">&#x25B6;</span>
+    <div class="flow-step">
+        <div class="flow-badge fb-4">4</div>
+        <span class="flow-text">Voice Call (Nova Sonic)</span>
+    </div>
+    <span class="flow-arrow">&#x25B6;</span>
+    <div class="flow-step">
+        <div class="flow-badge fb-5">5</div>
+        <span class="flow-text">SG Restored</span>
+    </div>
+    <span class="flow-arrow">&#x25B6;</span>
+    <div class="flow-step">
+        <div class="flow-badge fb-6">6</div>
+        <span class="flow-text">Resolved (~3 min loop)</span>
+    </div>
+</div>
+
+</body>
+</html>

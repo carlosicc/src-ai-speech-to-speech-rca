@@ -20,7 +20,7 @@ def get_env_bool(name: str, default: bool = False) -> bool:
 WS_PORT: int = get_env_int("WS_PORT", 8080)
 INCIDENT_LOOP_INTERVAL: int = get_env_int("INCIDENT_LOOP_INTERVAL", 180)
 DEFAULT_PHONE_NUMBER: str = get_env("DEFAULT_PHONE_NUMBER", "+44XXXXXXXXXX")
-DEFAULT_VOICE_MODE: str = get_env("DEFAULT_VOICE_MODE", "mode_c")
+DEFAULT_VOICE_MODE: str = get_env("DEFAULT_VOICE_MODE", "mode_b")
 BEDROCK_REGION: str = get_env("BEDROCK_REGION", "eu-west-1")
 BEDROCK_MODEL_ID: str = get_env("BEDROCK_MODEL_ID", "eu.anthropic.claude-sonnet-4-6")
 NOVA_SONIC_MODEL_ID: str = get_env("NOVA_SONIC_MODEL_ID", "amazon.nova-sonic-v1:0")
@@ -33,6 +33,10 @@ TWILIO_SECRET_ARN: str = get_env("TWILIO_SECRET_ARN", "")
 AGENTCORE_RUNTIME_ARN: str = get_env("AGENTCORE_RUNTIME_ARN", "")
 AGENTCORE_REGION: str = get_env("AGENTCORE_REGION", "us-east-1")
 API_TOKEN: str = get_env("API_TOKEN", "")
+RDS_CLUSTER_ID: str = get_env("RDS_CLUSTER_ID", "rca-rds-aurora-cluster-dev01")
+RDS_REGION: str = get_env("RDS_REGION", "eu-west-1")
+RDS_SECURITY_GROUP_ID: str = get_env("RDS_SECURITY_GROUP_ID", "sg-XXXXXXXXXXXXXXXXX")
+ECS_SECURITY_GROUP_ID: str = get_env("ECS_SECURITY_GROUP_ID", "sg-YYYYYYYYYYYYYYYYY")
 
 
 def load_twilio_credentials() -> tuple[str, str, str]:

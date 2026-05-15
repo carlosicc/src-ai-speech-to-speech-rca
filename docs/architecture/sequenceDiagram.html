@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alert to Action - Sequence Diagram</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Amazon Ember', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #FFFFFF;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .frame {
+            flex: 1;
+            margin: 12px;
+            border: 1.5px solid #232F3E;
+            border-radius: 3px;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+
+        .frame-title {
+            position: absolute;
+            top: -1px;
+            left: -1px;
+            background: #232F3E;
+            color: white;
+            padding: 6px 16px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            border-radius: 3px 0 6px 0;
+            letter-spacing: 0.3px;
+        }
+
+        .frame-title span {
+            color: #FF9900;
+        }
+
+        .diagram {
+            flex: 1;
+            padding: 40px 12px 12px;
+            overflow: hidden;
+        }
+
+        svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Participant boxes */
+        .participant-box {
+            fill: #FFF8E7;
+            stroke: #232F3E;
+            stroke-width: 1.2;
+        }
+
+        .participant-text {
+            font-family: 'Amazon Ember', -apple-system, sans-serif;
+            font-size: 9px;
+            font-weight: 600;
+            fill: #232F3E;
+            text-anchor: middle;
+            dominant-baseline: middle;
+        }
+
+        .participant-subtext {
+            font-family: 'Amazon Ember', -apple-system, sans-serif;
+            font-size: 7px;
+            font-weight: 400;
+            fill: #545B64;
+            text-anchor: middle;
+            dominant-baseline: middle;
+        }
+
+        /* Lifelines */
+        .lifeline {
+            stroke: #D5DBDB;
+            stroke-width: 1;
+            stroke-dasharray: 5,4;
+        }
+
+        /* Activation boxes */
+        .activation {
+            fill: #FFFFFF;
+            stroke: #232F3E;
+            stroke-width: 1;
+        }
+
+        .activation-highlight {
+            fill: #FFF4E6;
+            stroke: #FF9900;
+            stroke-width: 1.2;
+        }
+
+        .activation-ai {
+            fill: #E6FFF9;
+            stroke: #01A88D;
+            stroke-width: 1.2;
+        }
+
+        .activation-voice {
+            fill: #F0E6FF;
+            stroke: #8C4FFF;
+            stroke-width: 1.2;
+        }
+
+        /* Arrows */
+        .arrow-sync {
+            stroke: #232F3E;
+            stroke-width: 1.2;
+            fill: none;
+            marker-end: url(#arrowhead-solid);
+        }
+
+        .arrow-return {
+            stroke: #232F3E;
+            stroke-width: 1;
+            stroke-dasharray: 5,3;
+            fill: none;
+            marker-end: url(#arrowhead-open);
+        }
+
+        .arrow-async {
+            stroke: #8C4FFF;
+            stroke-width: 1.2;
+            fill: none;
+            marker-end: url(#arrowhead-purple);
+        }
+
+        /* Message labels */
+        .msg-label {
+            font-family: 'Amazon Ember', -apple-system, sans-serif;
+            font-size: 7.5px;
+            fill: #232F3E;
+            dominant-baseline: auto;
+        }
+
+        .msg-label-return {
+            font-family: 'Amazon Ember', -apple-system, sans-serif;
+            font-size: 7px;
+            fill: #545B64;
+            font-style: italic;
+            dominant-baseline: auto;
+        }
+
+        /* Phase separators */
+        .phase-band {
+            fill: rgba(255, 153, 0, 0.06);
+            stroke: none;
+        }
+
+        .phase-label {
+            font-family: 'Amazon Ember', -apple-system, sans-serif;
+            font-size: 8px;
+            font-weight: 700;
+            fill: #FF9900;
+            text-anchor: start;
+            letter-spacing: 0.5px;
+        }
+
+        .phase-line {
+            stroke: #FF9900;
+            stroke-width: 0.5;
+            stroke-dasharray: 2,3;
+            opacity: 0.5;
+        }
+
+        /* Notes */
+        .note-box {
+            fill: #FFFDE7;
+            stroke: #D4C96B;
+            stroke-width: 0.8;
+        }
+
+        .note-text {
+            font-family: 'Amazon Ember', -apple-system, sans-serif;
+            font-size: 6.5px;
+            fill: #545B64;
+            dominant-baseline: middle;
+        }
+
+        /* Self-call */
+        .self-call {
+            stroke: #232F3E;
+            stroke-width: 1;
+            fill: none;
+            marker-end: url(#arrowhead-solid);
+        }
+
+        /* Fragment boxes */
+        .fragment-box {
+            fill: none;
+            stroke: #879596;
+            stroke-width: 1;
+        }
+
+        .fragment-label-bg {
+            fill: #FFFFFF;
+            stroke: #879596;
+            stroke-width: 0.8;
+        }
+
+        .fragment-label {
+            font-family: 'Amazon Ember', -apple-system, sans-serif;
+            font-size: 7px;
+            font-weight: 700;
+            fill: #232F3E;
+        }
+    </style>
+</head>
+<body>
+
+<div class="frame">
+    <div class="frame-title">sd <span>Alert to Action</span> &mdash; Incident Response Sequence (~3 min)</div>
+    <div class="diagram">
+        <svg viewBox="0 0 1200 620" preserveAspectRatio="xMidYMid meet">
+            <defs>
+                <!-- Solid arrowhead -->
+                <marker id="arrowhead-solid" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+                    <polygon points="0 0, 8 3, 0 6" fill="#232F3E"/>
+                </marker>
+                <!-- Open arrowhead (return) -->
+                <marker id="arrowhead-open" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+                    <polyline points="0 0, 8 3, 0 6" fill="none" stroke="#232F3E" stroke-width="1"/>
+                </marker>
+                <!-- Purple arrowhead -->
+                <marker id="arrowhead-purple" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+                    <polygon points="0 0, 8 3, 0 6" fill="#8C4FFF"/>
+                </marker>
+            </defs>
+
+            <!-- ═══════════════════════════════════════════ -->
+            <!-- PARTICIPANTS (x positions)                  -->
+            <!-- Visitor:70  Frontend:210  Backend:360       -->
+            <!-- MasterAgent:500  DiagAgent:640             -->
+            <!-- AWS:780  VoiceRouter:900  Twilio:1020  DBA:1140 -->
+            <!-- ═══════════════════════════════════════════ -->
+
+            <!-- Participant boxes -->
+            <rect class="participant-box" x="20" y="15" width="100" height="34" rx="2"/>
+            <text class="participant-text" x="70" y="29">Booth Visitor</text>
+            <text class="participant-subtext" x="70" y="41">Browser</text>
+
+            <rect class="participant-box" x="155" y="15" width="110" height="34" rx="2"/>
+            <text class="participant-text" x="210" y="29">Frontend</text>
+            <text class="participant-subtext" x="210" y="41">React + THREE.js</text>
+
+            <rect class="participant-box" x="300" y="15" width="120" height="34" rx="2"/>
+            <text class="participant-text" x="360" y="29">WebSocket Server</text>
+            <text class="participant-subtext" x="360" y="41">FastAPI / ECS</text>
+
+            <rect class="participant-box" x="440" y="15" width="120" height="34" rx="2"/>
+            <text class="participant-text" x="500" y="29">Master Agent</text>
+            <text class="participant-subtext" x="500" y="41">Strands SDK</text>
+
+            <rect class="participant-box" x="585" y="15" width="110" height="34" rx="2"/>
+            <text class="participant-text" x="640" y="29">Diagnosis Agent</text>
+            <text class="participant-subtext" x="640" y="41">Sub-agent</text>
+
+            <rect class="participant-box" x="725" y="15" width="110" height="34" rx="2"/>
+            <text class="participant-text" x="780" y="29">AWS Services</text>
+            <text class="participant-subtext" x="780" y="41">EC2 / CW / RDS</text>
+
+            <rect class="participant-box" x="858" y="15" width="84" height="34" rx="2"/>
+            <text class="participant-text" x="900" y="29">Nova Sonic</text>
+            <text class="participant-subtext" x="900" y="41">Bedrock Voice</text>
+
+            <rect class="participant-box" x="972" y="15" width="84" height="34" rx="2"/>
+            <text class="participant-text" x="1014" y="29">Twilio</text>
+            <text class="participant-subtext" x="1014" y="41">Voice Platform</text>
+
+            <rect class="participant-box" x="1088" y="15" width="84" height="34" rx="2"/>
+            <text class="participant-text" x="1130" y="29">On-Call DBA</text>
+            <text class="participant-subtext" x="1130" y="41">Phone</text>
+
+            <!-- Lifelines -->
+            <line class="lifeline" x1="70" y1="49" x2="70" y2="610"/>
+            <line class="lifeline" x1="210" y1="49" x2="210" y2="610"/>
+            <line class="lifeline" x1="360" y1="49" x2="360" y2="610"/>
+            <line class="lifeline" x1="500" y1="49" x2="500" y2="610"/>
+            <line class="lifeline" x1="640" y1="49" x2="640" y2="610"/>
+            <line class="lifeline" x1="780" y1="49" x2="780" y2="610"/>
+            <line class="lifeline" x1="900" y1="49" x2="900" y2="610"/>
+            <line class="lifeline" x1="1014" y1="49" x2="1014" y2="610"/>
+            <line class="lifeline" x1="1130" y1="49" x2="1130" y2="610"/>
+
+            <!-- ═══════════════════════════════════════════ -->
+            <!-- PHASE 1: BREAK DATABASE (y: 60-120)        -->
+            <!-- ═══════════════════════════════════════════ -->
+
+            <rect class="phase-band" x="0" y="56" width="1200" height="68"/>
+            <line class="phase-line" x1="0" y1="56" x2="1200" y2="56"/>
+            <text class="phase-label" x="8" y="68">INCIDENT</text>
+
+            <!-- Activation boxes -->
+            <rect class="activation" x="66" y="72" width="8" height="20"/>
+            <rect class="activation" x="206" y="72" width="8" height="44"/>
+            <rect class="activation-highlight" x="356" y="85" width="8" height="35"/>
+
+            <!-- Visitor clicks "Break Database" -->
+            <line class="arrow-sync" x1="74" y1="80" x2="206" y2="80"/>
+            <text class="msg-label" x="105" y="76">click "Break Database"</text>
+
+            <!-- Frontend sends WS message -->
+            <line class="arrow-sync" x1="214" y1="95" x2="356" y2="95"/>
+            <text class="msg-label" x="240" y="91">WS: break_database</text>
+
+            <!-- Backend revokes SG rule -->
+            <line class="arrow-sync" x1="364" y1="108" x2="774" y2="108"/>
+            <text class="msg-label" x="460" y="104">EC2: RevokeSecurityGroupIngress (port 3306)</text>
+
+            <!-- Return -->
+            <line class="arrow-return" x1="774" y1="116" x2="214" y2="116"/>
+            <text class="msg-label-return" x="420" y="114">incident_detected + city goes dark</text>
+
+            <!-- ═══════════════════════════════════════════ -->
+            <!-- PHASE 2: DIAGNOSIS (y: 124-310)            -->
+            <!-- ═══════════════════════════════════════════ -->
+
+            <rect class="phase-band" x="0" y="124" width="1200" height="188"/>
+            <line class="phase-line" x1="0" y1="124" x2="1200" y2="124"/>
+            <text class="phase-label" x="8" y="136">DIAGNOSING</text>
+
+            <!-- Activation boxes -->
+            <rect class="activation-highlight" x="356" y="135" width="8" height="30"/>
+            <rect class="activation-ai" x="496" y="148" width="8" height="155"/>
+            <rect class="activation-ai" x="636" y="172" width="8" height="105"/>
+
+            <!-- Backend triggers master agent -->
+            <line class="arrow-sync" x1="364" y1="145" x2="496" y2="145"/>
+            <text class="msg-label" x="377" y="141">trigger_incident(service="aurora-db")</text>
+
+            <!-- Master assesses severity (self-call) -->
+            <path class="self-call" d="M504,160 L530,160 L530,172 L504,172"/>
+            <text class="msg-label" x="534" y="164">assess_severity()</text>
+
+            <!-- Master activates diagnosis -->
+            <line class="arrow-sync" x1="504" y1="182" x2="636" y2="182"/>
+            <text class="msg-label" x="520" y="178">activate_diagnosis("aurora-db")</text>
+
+            <!-- Diagnosis agent runs tools -->
+            <line class="arrow-sync" x1="644" y1="198" x2="774" y2="198"/>
+            <text class="msg-label" x="660" y="194">pull_logs(CloudWatch Insights)</text>
+
+            <line class="arrow-return" x1="774" y1="210" x2="644" y2="210"/>
+            <text class="msg-label-return" x="680" y="208">error logs</text>
+
+            <line class="arrow-sync" x1="644" y1="224" x2="774" y2="224"/>
+            <text class="msg-label" x="660" y="220">check_health(RDS + Metrics)</text>
+
+            <line class="arrow-return" x1="774" y1="236" x2="644" y2="236"/>
+            <text class="msg-label-return" x="680" y="234">cluster status + CPU/IOPS</text>
+
+            <line class="arrow-sync" x1="644" y1="250" x2="774" y2="250"/>
+            <text class="msg-label" x="660" y="246">check_network(DescribeSecurityGroups)</text>
+
+            <line class="arrow-return" x1="774" y1="262" x2="644" y2="262"/>
+            <text class="msg-label-return" x="680" y="260">port 3306 rule MISSING</text>
+
+            <!-- Note: RCA found -->
+            <rect class="note-box" x="560" y="272" width="155" height="18" rx="1"/>
+            <text class="note-text" x="566" y="283">Root Cause: Network access revoked</text>
+
+            <!-- Diagnosis returns RCA -->
+            <line class="arrow-return" x1="636" y1="298" x2="504" y2="298"/>
+            <text class="msg-label-return" x="522" y="296">RCA summary (severity: critical)</text>
+
+            <!-- ═══════════════════════════════════════════ -->
+            <!-- PHASE 3: VOICE CALL (y: 312-520)           -->
+            <!-- ═══════════════════════════════════════════ -->
+
+            <rect class="phase-band" x="0" y="312" width="1200" height="210"/>
+            <line class="phase-line" x1="0" y1="312" x2="1200" y2="312"/>
+            <text class="phase-label" x="8" y="324">CALLING (Voice Escalation)</text>
+
+            <!-- Activation boxes -->
+            <rect class="activation-ai" x="496" y="328" width="8" height="28"/>
+            <rect class="activation-voice" x="896" y="350" width="8" height="158"/>
+            <rect class="activation" x="1010" y="338" width="8" height="84"/>
+            <rect class="activation" x="1126" y="365" width="8" height="148"/>
+
+            <!-- Master activates voice -->
+            <line class="arrow-sync" x1="504" y1="338" x2="896" y2="338"/>
+            <text class="msg-label" x="600" y="334">activate_voice_call(incident_id, rca_summary)</text>
+
+            <!-- Voice router calls Twilio -->
+            <line class="arrow-sync" x1="904" y1="352" x2="1010" y2="352"/>
+            <text class="msg-label" x="916" y="348">REST: calls.create(to, from, twiml)</text>
+
+            <!-- Twilio dials DBA -->
+            <line class="arrow-sync" x1="1018" y1="370" x2="1126" y2="370"/>
+            <text class="msg-label" x="1030" y="366">PSTN: dial phone</text>
+
+            <!-- DBA answers -->
+            <line class="arrow-return" x1="1126" y1="385" x2="1018" y2="385"/>
+            <text class="msg-label-return" x="1040" y="383">call connected</text>
+
+            <!-- Twilio opens media stream -->
+            <line class="arrow-async" x1="1010" y1="398" x2="904" y2="398"/>
+            <text class="msg-label" x="918" y="394" style="fill:#8C4FFF">Media Stream WebSocket (mulaw 8kHz)</text>
+
+            <!-- Nova Sonic greeting -->
+            <line class="arrow-sync" x1="904" y1="418" x2="1126" y2="418"/>
+            <text class="msg-label" x="940" y="414">"This is the AI Operations Center..."</text>
+
+            <!-- Fragment: auth loop -->
+            <rect class="fragment-box" x="855" y="430" width="295" height="58" rx="1"/>
+            <rect class="fragment-label-bg" x="855" y="430" width="52" height="14"/>
+            <text class="fragment-label" x="860" y="440">auth</text>
+
+            <!-- DBA speaks passphrase -->
+            <line class="arrow-return" x1="1126" y1="448" x2="904" y2="448"/>
+            <text class="msg-label-return" x="945" y="446">"REDACTED_PASSPHRASE" (voice passphrase)</text>
+
+            <!-- Tool: authenticate -->
+            <path class="self-call" d="M904,460 L940,460 L940,472 L904,472"/>
+            <text class="msg-label" x="944" y="464">authenticate_user() &#x2713;</text>
+
+            <!-- Tool: restore connectivity -->
+            <line class="arrow-sync" x1="904" y1="496" x2="774" y2="496"/>
+            <text class="msg-label" x="790" y="492">restore_connectivity(): AuthorizeSecurityGroupIngress</text>
+
+            <line class="arrow-return" x1="774" y1="506" x2="896" y2="506"/>
+            <text class="msg-label-return" x="790" y="516">port 3306 restored &#x2713;</text>
+
+            <!-- ═══════════════════════════════════════════ -->
+            <!-- PHASE 4: RECOVERY (y: 522-600)             -->
+            <!-- ═══════════════════════════════════════════ -->
+
+            <rect class="phase-band" x="0" y="522" width="1200" height="78"/>
+            <line class="phase-line" x1="0" y1="522" x2="1200" y2="522"/>
+            <text class="phase-label" x="8" y="534">RECOVERING / RESOLVED</text>
+
+            <!-- Activation boxes -->
+            <rect class="activation-ai" x="496" y="536" width="8" height="24"/>
+            <rect class="activation-highlight" x="356" y="548" width="8" height="30"/>
+            <rect class="activation" x="206" y="570" width="8" height="24"/>
+
+            <!-- Nova Sonic confirms to DBA -->
+            <line class="arrow-sync" x1="904" y1="538" x2="1126" y2="538"/>
+            <text class="msg-label" x="940" y="534">"Connectivity restored. Thank you."</text>
+
+            <!-- Master updates status -->
+            <line class="arrow-sync" x1="504" y1="550" x2="774" y2="550"/>
+            <text class="msg-label" x="540" y="546">update_incident_status("resolved")</text>
+
+            <!-- Backend broadcasts recovery -->
+            <line class="arrow-sync" x1="364" y1="566" x2="774" y2="566"/>
+            <text class="msg-label" x="420" y="562">CloudWatch: verify metrics recovering</text>
+
+            <line class="arrow-return" x1="356" y1="580" x2="214" y2="580"/>
+            <text class="msg-label-return" x="230" y="578">phase_update: RESOLVED + metrics normal</text>
+
+            <!-- Frontend shows recovery -->
+            <line class="arrow-return" x1="210" y1="592" x2="74" y2="592"/>
+            <text class="msg-label-return" x="100" y="590">City lights up &#x2728; Systems green</text>
+
+            <!-- Duration annotations (right side) -->
+            <!-- Phase 1 duration -->
+            <text x="1175" y="92" font-family="'Amazon Ember', sans-serif" font-size="7" fill="#879596" text-anchor="end">~2s</text>
+            <!-- Phase 2 duration -->
+            <text x="1175" y="220" font-family="'Amazon Ember', sans-serif" font-size="7" fill="#879596" text-anchor="end">~20-30s</text>
+            <!-- Phase 3 duration -->
+            <text x="1175" y="420" font-family="'Amazon Ember', sans-serif" font-size="7" fill="#879596" text-anchor="end">~30-90s</text>
+            <!-- Phase 4 duration -->
+            <text x="1175" y="565" font-family="'Amazon Ember', sans-serif" font-size="7" fill="#879596" text-anchor="end">~5s</text>
+
+        </svg>
+    </div>
+</div>
+
+</body>
+</html>

@@ -31,10 +31,10 @@ TOOL_SPECS: list[dict[str, Any]] = [
     },
     {
         "toolSpec": {
-            "name": "restart_database",
+            "name": "restore_connectivity",
             "description": (
-                "Execute database recovery by restarting the Aurora DB service. "
-                "Only call this after the user has been authenticated and explicitly authorizes the restart."
+                "Restore network connectivity by re-adding the firewall rule for port 3306. "
+                "Only call this after the user has been authenticated and explicitly authorizes the restore."
             ),
             "inputSchema": {
                 "json": json.dumps({
@@ -42,7 +42,7 @@ TOOL_SPECS: list[dict[str, Any]] = [
                     "properties": {
                         "service": {
                             "type": "string",
-                            "description": "The service to restart",
+                            "description": "The service to restore connectivity for",
                             "default": "aurora-db",
                         },
                         "confirmation": {
@@ -85,8 +85,8 @@ async def execute_tool(tool_name: str, tool_input: dict[str, Any]) -> dict[str, 
 
     if tool_name == "authenticate_user":
         return _authenticate_user(tool_input.get("passphrase", ""))
-    elif tool_name == "restart_database":
-        return await _restart_database(tool_input.get("service", "aurora-db"))
+    elif tool_name == "restore_connectivity":
+        return await _restore_connectivity(tool_input.get("service", "aurora-db"))
     elif tool_name == "check_service_health":
         return _check_service_health(tool_input.get("service", "aurora-db"))
     else:
@@ -111,18 +111,27 @@ def _authenticate_user(passphrase: str) -> dict[str, Any]:
         }
 
 
-async def _restart_database(service: str) -> dict[str, Any]:
+async def _restore_connectivity(service: str) -> dict[str, Any]:
+    from shared.network_operations import restore_db_access
+
+    restore_result = await restore_db_access()
+    logger.info(f"restore_db_access result: {restore_result}")
+
+    if restore_result["status"] == "error":
+        from agents.diagnosis_agent import _broadcast_aws_error
+        _broadcast_aws_error("restore_connectivity", Exception(restore_result["message"]))
+
     if demo_state.phase == Phase.CALLING:
         demo_state.phase = Phase.RECOVERING
-        logger.info(f"Database restart initiated for {service}, advancing to RECOVERING")
+        logger.info(f"Firewall rule restored for {service}, advancing to RECOVERING")
         return {
             "status": "success",
-            "message": f"Recovery procedure initiated for {service}. Connection pool is draining and service is restarting. ETA: 30 seconds.",
+            "message": f"Firewall rule restored for {service}. Port 3306 inbound re-added — connectivity recovered instantly.",
         }
     else:
         return {
             "status": "success",
-            "message": f"Recovery command accepted for {service}. System will restore shortly.",
+            "message": f"Firewall rule restored for {service}. Security group rule re-added.",
         }
 
 
