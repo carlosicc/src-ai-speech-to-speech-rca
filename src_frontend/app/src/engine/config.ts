@@ -158,6 +158,7 @@ export const NPC_SHEETS = [
   "/sprites/characters/julz.png",
   "/sprites/characters/nyro.png",
   "/sprites/characters/khali.png",
+  "/sprites/characters/serek.png",
 ];
 
 // Which sheets use the PixelSpaces layout (16x16, 4c x 3r) vs OldTown layout (16x16, 4c x 31r)

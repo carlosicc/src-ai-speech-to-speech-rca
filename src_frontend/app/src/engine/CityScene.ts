@@ -45,6 +45,11 @@ export class CityScene {
   private characters: Character[] = [];
   private currentState: SceneState = "HEALTHY";
   private affectedRoom: string | null = null;
+  private masterAgentFrame = 0;
+  private masterAgentFrameTimer = 0;
+  private masterAgentX = 0;
+  private masterAgentDir = 1;
+  private masterAgentFacingLeft = false;
 
   async init(container: HTMLElement): Promise<void> {
     this.container = container;
@@ -160,6 +165,7 @@ export class CityScene {
 
     this.drawBackground();
     this.drawBuilding();
+    this.drawMasterAgent();
     this.updateCharacters();
     this.drawCharacters();
 
@@ -366,6 +372,63 @@ export class CityScene {
 
       this.drawSpeechBubble(cx + NPC_FRAME_SIZE / 2, cy - 2, "subagent");
     }
+  }
+
+  private drawMasterAgent(): void {
+    if (!this.spritesLoaded) return;
+    const { ctx } = this;
+    const sw = this.W / SCALE;
+    const bx = (sw - BUILDING_WIDTH) / 2;
+
+    // grym sprite = index 4 (OldTown layout)
+    const sheet = this.npcSheets[4];
+    if (!sheet || sheet.naturalWidth === 0) return;
+    const drawSize = Math.round(NPC_FRAME_SIZE * 1.3);
+
+    // Walk on the roof line of the top floor
+    const topFloorY = this.getRoomY(2);
+    const roofY = topFloorY - drawSize;
+    const walkRange = 60;
+    const walkCenter = BUILDING_WIDTH / 2;
+
+    // Initialize X position
+    if (this.masterAgentX === 0) {
+      this.masterAgentX = walkCenter;
+    }
+
+    // Move slowly side to side
+    this.masterAgentX += this.masterAgentDir * 0.15;
+    if (this.masterAgentX > walkCenter + walkRange / 2) {
+      this.masterAgentDir = -1;
+      this.masterAgentFacingLeft = true;
+    } else if (this.masterAgentX < walkCenter - walkRange / 2) {
+      this.masterAgentDir = 1;
+      this.masterAgentFacingLeft = false;
+    }
+
+    // Walk animation: OldTown row 6 (side walk), 4 frames
+    this.masterAgentFrameTimer++;
+    if (this.masterAgentFrameTimer > 12) {
+      this.masterAgentFrameTimer = 0;
+      this.masterAgentFrame = (this.masterAgentFrame + 1) % 4;
+    }
+
+    const sx = this.masterAgentFrame * NPC_FRAME_SIZE;
+    const sy = 6 * NPC_FRAME_SIZE; // row 6 = side walk
+
+    const drawX = bx + this.masterAgentX - drawSize / 2;
+
+    ctx.save();
+    if (this.masterAgentFacingLeft) {
+      ctx.translate(drawX + drawSize / 2, roofY);
+      ctx.scale(-1, 1);
+      ctx.drawImage(sheet, sx, sy, NPC_FRAME_SIZE, NPC_FRAME_SIZE, -drawSize / 2, 0, drawSize, drawSize);
+    } else {
+      ctx.drawImage(sheet, sx, sy, NPC_FRAME_SIZE, NPC_FRAME_SIZE, drawX, roofY, drawSize, drawSize);
+    }
+    ctx.restore();
+
+    this.drawSpeechBubble(drawX + drawSize / 2, roofY - 2, "Master Agent");
   }
 
   private drawSpeechBubble(x: number, y: number, text: string): void {
