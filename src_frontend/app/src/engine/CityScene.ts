@@ -363,7 +363,50 @@ export class CityScene {
         ctx.drawImage(sheet, sx, sy, NPC_FRAME_SIZE, NPC_FRAME_SIZE, cx, cy, NPC_FRAME_SIZE, NPC_FRAME_SIZE);
       }
       ctx.restore();
+
+      this.drawSpeechBubble(cx + NPC_FRAME_SIZE / 2, cy - 2, "subagent");
     }
+  }
+
+  private drawSpeechBubble(x: number, y: number, text: string): void {
+    const { ctx } = this;
+    const padding = 2;
+    const fontSize = 4;
+    const tailH = 2;
+
+    ctx.font = `bold ${fontSize}px monospace`;
+    const textW = ctx.measureText(text).width;
+    const bw = textW + padding * 2;
+    const bh = fontSize + padding * 2;
+    const bx = x - bw / 2;
+    const by = y - bh - tailH;
+
+    // Bubble background
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(bx, by, bw, bh);
+
+    // Bubble border (1px pixel style)
+    ctx.strokeStyle = "#333333";
+    ctx.lineWidth = 0.5;
+    ctx.strokeRect(bx, by, bw, bh);
+
+    // Tail (small triangle pointing down)
+    ctx.fillStyle = "#ffffff";
+    ctx.beginPath();
+    ctx.moveTo(x - 1.5, by + bh);
+    ctx.lineTo(x + 1.5, by + bh);
+    ctx.lineTo(x, by + bh + tailH);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Text
+    ctx.fillStyle = "#222222";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(text, x, by + bh / 2);
+    ctx.textAlign = "start";
+    ctx.textBaseline = "alphabetic";
   }
 
   transitionTo(state: SceneState, affectedRoom: string | null = null): void {
