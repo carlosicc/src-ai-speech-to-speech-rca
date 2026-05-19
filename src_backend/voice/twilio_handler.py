@@ -190,16 +190,16 @@ class TwilioMediaStreamHandler:
             return
         logger.warning("Watchdog: no completionStart after 5s, restarting session")
         old_session = self._nova_session
-        self._nova_session = None
+        self._nova_session = None  # Block media forwarding during setup
         await old_session.stop()
-        # Each session creates its own client, so no shared state to corrupt
-        self._nova_session = NovaSonicSession(
+        new_session = NovaSonicSession(
             on_audio_output=self._handle_nova_audio,
             on_transcript=self._on_transcript,
             on_session_end=self._handle_session_end,
         )
-        await self._nova_session.start_session_and_prompt()
-        await self._nova_session.setup_system_prompt_and_audio()
+        await new_session.start_session_and_prompt()
+        await new_session.setup_system_prompt_and_audio()
+        self._nova_session = new_session  # Only now allow media forwarding
         await self._send_hello_audio()
         logger.info("Watchdog: retry session started")
 

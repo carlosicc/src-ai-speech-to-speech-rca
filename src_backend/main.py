@@ -103,11 +103,7 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
         )
         while True:
             data = await websocket.receive_text()
-            previous_phase = demo_state.phase
             await handle_client_message(data)
-            if demo_state.phase == Phase.INCIDENT_DETECTED and previous_phase == Phase.HEALTHY:
-                import asyncio
-                asyncio.create_task(demo_controller._run_phases())
     except WebSocketDisconnect:
         manager.disconnect(websocket)
 

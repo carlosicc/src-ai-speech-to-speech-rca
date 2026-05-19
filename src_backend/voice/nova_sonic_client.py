@@ -102,7 +102,6 @@ class NovaSonicSession:
         logger.info("Nova Sonic phase 1 complete: sessionStart + promptStart sent")
 
         self._response_task = asyncio.create_task(self._process_responses())
-        await asyncio.sleep(0.1)
 
     async def setup_system_prompt_and_audio(self) -> None:
         """Phase 2: send systemPrompt + audioContentStart."""
@@ -320,6 +319,7 @@ class NovaSonicSession:
     async def _process_responses(self) -> None:
         event_count = 0
         audio_out_count = 0
+        error_occurred = False
         try:
             while self._active and self._stream_response:
                 output = await self._stream_response.await_output()
@@ -341,13 +341,15 @@ class NovaSonicSession:
         except asyncio.CancelledError:
             pass
         except Exception as e:
+            error_occurred = True
             if self._active:
                 logger.error(f"Error processing Nova Sonic responses: {e}", exc_info=True)
         finally:
             logger.info(f"Nova Sonic response loop ended: {event_count} events, {audio_out_count} audio outputs")
             if self._active:
                 self._active = False
-                await self._on_session_end()
+                if not error_occurred:
+                    await self._on_session_end()
 
     @property
     def got_completion_start(self) -> bool:

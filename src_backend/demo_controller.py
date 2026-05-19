@@ -73,6 +73,10 @@ class DemoController:
         while demo_state.phase != Phase.HEALTHY:
             if demo_state.phase == Phase.DIAGNOSING:
                 await self._run_master_orchestration()
+                # Master agent sets phase to CALLING internally via activate_voice_call.
+                # Don't advance — fall through to the next loop iteration which handles CALLING.
+                if demo_state.phase == Phase.CALLING:
+                    continue
             elif demo_state.phase == Phase.CALLING:
                 await self._run_voice_session()
             else:
