@@ -97,18 +97,28 @@ def _authenticate_user(passphrase: str) -> dict[str, Any]:
     normalized = passphrase.strip().lower()
     expected = VOICE_PASSPHRASE.strip().lower()
 
+    # Exact match or substring match
     if normalized == expected or expected in normalized:
         logger.info("Voice authentication successful")
         return {
             "status": "authenticated",
             "message": "Identity verified successfully. You are now authorized to execute recovery actions.",
         }
-    else:
-        logger.warning(f"Voice authentication failed: '{normalized}' != '{expected}'")
+
+    # Word-level fuzzy match: accept if both words of the passphrase appear in the spoken text
+    expected_words = expected.split()
+    if len(expected_words) >= 2 and all(w in normalized for w in expected_words):
+        logger.info(f"Voice authentication successful (word-level match): '{normalized}'")
         return {
-            "status": "failed",
-            "message": "Authentication failed. Passphrase did not match. Please try again.",
+            "status": "authenticated",
+            "message": "Identity verified successfully. You are now authorized to execute recovery actions.",
         }
+
+    logger.warning(f"Voice authentication failed: '{normalized}' != '{expected}'")
+    return {
+        "status": "failed",
+        "message": "Authentication failed. Passphrase did not match. Please try again.",
+    }
 
 
 async def _restore_connectivity(service: str) -> dict[str, Any]:

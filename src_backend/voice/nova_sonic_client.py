@@ -281,13 +281,15 @@ class NovaSonicSession:
 
     async def _send_tool_result(self, tool_use_id: str, result: dict[str, Any]) -> None:
         content_name = str(uuid4())
+        status = "error" if result.get("status") == "error" else "success"
         await self._send_event({
             "event": {
                 "contentStart": {
                     "promptName": self._prompt_name,
                     "contentName": content_name,
-                    "interactive": False,
+                    "interactive": True,
                     "type": "TOOL",
+                    "role": "TOOL",
                     "toolResultInputConfiguration": {
                         "toolUseId": tool_use_id,
                         "type": "TEXT",
@@ -302,6 +304,7 @@ class NovaSonicSession:
                     "promptName": self._prompt_name,
                     "contentName": content_name,
                     "content": json.dumps(result),
+                    "status": status,
                 }
             }
         })
