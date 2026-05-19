@@ -30,6 +30,7 @@ VOICE_AGENT_SYSTEM_PROMPT = (
 
 
 def _create_bedrock_client() -> Any:
+    """Create a new Bedrock client. Each session gets its own to avoid HTTP/2 stream conflicts."""
     from aws_sdk_bedrock_runtime.client import BedrockRuntimeClient
     from aws_sdk_bedrock_runtime.config import Config
     from smithy_aws_core.auth.sigv4 import SigV4AuthScheme
@@ -39,12 +40,10 @@ def _create_bedrock_client() -> Any:
 
     uri = os.environ.get("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI", "")
     if uri:
-        logger.info("Using ContainerCredentialsResolver for Bedrock client")
         client_config = AIOHTTPClientConfig()
         http_client = AIOHTTPClient(client_config=client_config)
         resolver = ContainerCredentialsResolver(http_client)
     else:
-        logger.info("Using EnvironmentCredentialsResolver for Bedrock client")
         resolver = EnvironmentCredentialsResolver()
 
     config = Config(
@@ -74,12 +73,19 @@ class NovaSonicSession:
         self._active = False
         self._client: Any = None
         self._speculative_content_ids: set[str] = set()
+        self._got_completion_start = False
 
     @property
     def active(self) -> bool:
         return self._active
 
     async def start(self) -> None:
+        """Full session setup in one call (legacy convenience method)."""
+        await self.start_session_and_prompt()
+        await self.setup_system_prompt_and_audio()
+
+    async def start_session_and_prompt(self) -> None:
+        """Phase 1: open bidirectional stream, send sessionStart + promptStart."""
         from aws_sdk_bedrock_runtime.client import InvokeModelWithBidirectionalStreamOperationInput
 
         logger.info(f"Starting Nova Sonic session, model={NOVA_SONIC_MODEL_ID}, region={NOVA_SONIC_REGION}")
@@ -90,14 +96,19 @@ class NovaSonicSession:
             InvokeModelWithBidirectionalStreamOperationInput(model_id=NOVA_SONIC_MODEL_ID)
         )
 
+        # sessionStart MUST be the first event on the stream — send before starting response task
+        await self._send_session_start()
+        await self._send_prompt_start()
+        logger.info("Nova Sonic phase 1 complete: sessionStart + promptStart sent")
+
         self._response_task = asyncio.create_task(self._process_responses())
         await asyncio.sleep(0.1)
 
-        await self._send_session_start()
-        await self._send_prompt_start()
+    async def setup_system_prompt_and_audio(self) -> None:
+        """Phase 2: send systemPrompt + audioContentStart."""
         await self._send_system_prompt()
         await self._send_audio_content_start()
-        logger.info("Nova Sonic session initialized, ready for audio input")
+        logger.info("Nova Sonic phase 2 complete: systemPrompt + audioContentStart sent")
 
     async def send_audio(self, pcm_base64: str) -> None:
         if not self._active:
@@ -141,14 +152,6 @@ class NovaSonicSession:
                 pass
             self._response_task = None
 
-        if self._client and hasattr(self._client, "_config"):
-            try:
-                http_client = getattr(self._client._config, "_http_client", None)
-                if http_client and hasattr(http_client, "close"):
-                    await http_client.close()
-            except Exception:
-                pass
-
         self._stream_response = None
         self._client = None
 
@@ -174,7 +177,7 @@ class NovaSonicSession:
                         "maxTokens": 1024,
                         "topP": 0.9,
                         "temperature": 0.7,
-                    }
+                    },
                 }
             }
         })
@@ -189,10 +192,13 @@ class NovaSonicSession:
                         "audioType": "SPEECH",
                         "encoding": "base64",
                         "mediaType": "audio/lpcm",
-                        "sampleRateHertz": 24000,
+                        "sampleRateHertz": 8000,
                         "sampleSizeBits": 16,
                         "channelCount": 1,
                         "voiceId": "tiffany",
+                    },
+                    "toolUseOutputConfiguration": {
+                        "mediaType": "application/json",
                     },
                     "toolConfiguration": {"tools": TOOL_SPECS},
                 }
@@ -207,8 +213,7 @@ class NovaSonicSession:
                     "promptName": self._prompt_name,
                     "contentName": content_name,
                     "type": "TEXT",
-                    "interactive": False,
-                    "role": "SYSTEM",
+                    "interactive": True,
                     "textInputConfiguration": {"mediaType": "text/plain"},
                 }
             }
@@ -219,6 +224,7 @@ class NovaSonicSession:
                     "promptName": self._prompt_name,
                     "contentName": content_name,
                     "content": VOICE_AGENT_SYSTEM_PROMPT,
+                    "role": "SYSTEM",
                 }
             }
         })
@@ -239,12 +245,11 @@ class NovaSonicSession:
                     "contentName": self._audio_content_name,
                     "type": "AUDIO",
                     "interactive": True,
-                    "role": "USER",
                     "audioInputConfiguration": {
                         "audioType": "SPEECH",
                         "encoding": "base64",
                         "mediaType": "audio/lpcm",
-                        "sampleRateHertz": 24000,
+                        "sampleRateHertz": 8000,
                         "sampleSizeBits": 16,
                         "channelCount": 1,
                     },
@@ -283,7 +288,6 @@ class NovaSonicSession:
                     "contentName": content_name,
                     "interactive": False,
                     "type": "TOOL",
-                    "role": "TOOL",
                     "toolResultInputConfiguration": {
                         "toolUseId": tool_use_id,
                         "type": "TEXT",
@@ -311,6 +315,8 @@ class NovaSonicSession:
         })
 
     async def _process_responses(self) -> None:
+        event_count = 0
+        audio_out_count = 0
         try:
             while self._active and self._stream_response:
                 output = await self._stream_response.await_output()
@@ -318,19 +324,37 @@ class NovaSonicSession:
                 if result.value and result.value.bytes_:
                     response_data = result.value.bytes_.decode("utf-8")
                     payload = json.loads(response_data)
+                    event_count += 1
+                    event_keys = list(payload.get("event", {}).keys())
+                    if "audioOutput" in event_keys:
+                        audio_out_count += 1
+                        if audio_out_count <= 3:
+                            logger.info(f"Nova Sonic audioOutput #{audio_out_count} (event #{event_count})")
+                    elif event_count <= 20:
+                        logger.info(f"Nova Sonic event #{event_count}: {event_keys} payload={json.dumps(payload)[:500]}")
                     await self._handle_response_event(payload)
+                else:
+                    logger.warning(f"Nova Sonic empty response: value={result.value}")
         except asyncio.CancelledError:
             pass
         except Exception as e:
             if self._active:
-                logger.error(f"Error processing Nova Sonic responses: {e}")
+                logger.error(f"Error processing Nova Sonic responses: {e}", exc_info=True)
         finally:
+            logger.info(f"Nova Sonic response loop ended: {event_count} events, {audio_out_count} audio outputs")
             if self._active:
                 self._active = False
                 await self._on_session_end()
 
+    @property
+    def got_completion_start(self) -> bool:
+        return self._got_completion_start
+
     async def _handle_response_event(self, payload: dict[str, Any]) -> None:
         event = payload.get("event", {})
+
+        if "completionStart" in event:
+            self._got_completion_start = True
 
         if "contentStart" in event:
             content_start = event["contentStart"]

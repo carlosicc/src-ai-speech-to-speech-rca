@@ -8,6 +8,7 @@ import asyncio
 import base64
 import json
 import logging
+import os
 import struct
 from typing import Any
 
@@ -15,7 +16,7 @@ from fastapi import WebSocket, WebSocketDisconnect
 
 from shared.config import load_twilio_credentials
 from shared.state import demo_state
-from voice.audio_converter import nova_to_twilio, twilio_to_nova
+from voice.audio_converter import mulaw_decode, mulaw_encode
 from voice.nova_sonic_client import NovaSonicSession
 
 logger = logging.getLogger(__name__)
@@ -70,8 +71,10 @@ async def place_outbound_call(to_number: str, media_stream_url: str) -> str | No
 class TwilioMediaStreamHandler:
     """Handles a Twilio Media Stream WebSocket connection.
 
-    Bridges audio between Twilio (mulaw 8kHz) and Nova Sonic (PCM 24kHz).
+    Bridges audio between Twilio (mulaw 8kHz) and Nova Sonic (PCM 8kHz).
     """
+
+    HELLO_PCM_PATH = os.path.join(os.path.dirname(__file__), "assets", "hello.pcm")
 
     def __init__(
         self,
@@ -96,7 +99,13 @@ class TwilioMediaStreamHandler:
         return self._call_sid
 
     async def handle(self) -> None:
-        """Process the Twilio Media Stream WebSocket lifecycle."""
+        """Process the Twilio Media Stream WebSocket lifecycle.
+
+        Mirrors the official AWS sample's event ordering:
+        - connected → create session + sessionStart + promptStart
+        - start → systemPrompt + audioContentStart + hello.pcm
+        - media → forward audio immediately (never blocked)
+        """
         self._active = True
         try:
             while self._active:
@@ -106,22 +115,28 @@ class TwilioMediaStreamHandler:
 
                 if event_type == "connected":
                     logger.info("Twilio Media Stream: connected")
+                    await self._init_nova_session()
 
                 elif event_type == "start":
                     self._stream_sid = message.get("streamSid", "")
                     start_data = message.get("start", {})
                     self._call_sid = start_data.get("callSid", "")
                     logger.info(f"Twilio Media Stream started: streamSid={self._stream_sid}, callSid={self._call_sid}")
-                    await self._start_nova_session()
-                    await self._send_initial_audio()
+                    await self._setup_nova_prompt()
+                    await self._send_hello_audio()
+                    asyncio.create_task(self._watchdog())
 
                 elif event_type == "media":
+                    self._media_count = getattr(self, "_media_count", 0) + 1
+                    if self._media_count in (1, 10, 50, 100):
+                        logger.info(f"Twilio media chunk #{self._media_count} received")
                     media = message.get("media", {})
                     payload = media.get("payload", "")
                     if payload and self._nova_session:
                         mulaw_bytes = base64.b64decode(payload)
-                        pcm_24k_base64 = twilio_to_nova(mulaw_bytes)
-                        await self._nova_session.send_audio(pcm_24k_base64)
+                        pcm_8k = mulaw_decode(mulaw_bytes)
+                        pcm_b64 = base64.b64encode(pcm_8k).decode("ascii")
+                        await self._nova_session.send_audio(pcm_b64)
 
                 elif event_type == "stop":
                     logger.info("Twilio Media Stream: stop event received")
@@ -134,39 +149,66 @@ class TwilioMediaStreamHandler:
         finally:
             await self._cleanup()
 
-    async def _start_nova_session(self) -> None:
-        """Initialize the Nova Sonic session for this call."""
+    async def _init_nova_session(self) -> None:
+        """Phase 1 (on 'connected'): create stream + send sessionStart + promptStart."""
         self._nova_session = NovaSonicSession(
             on_audio_output=self._handle_nova_audio,
             on_transcript=self._on_transcript,
             on_session_end=self._handle_session_end,
         )
-        await self._nova_session.start()
-        logger.info("Nova Sonic session started for Twilio call")
+        await self._nova_session.start_session_and_prompt()
+        logger.info("Nova Sonic session created, sessionStart + promptStart sent")
 
-    async def _send_initial_audio(self) -> None:
-        """Send a short silence burst to Nova Sonic to trigger its greeting.
-
-        Nova Sonic won't speak until it receives audio input.
-        Send 500ms of silence (24kHz, 16-bit) to kickstart the conversation.
-        """
+    async def _setup_nova_prompt(self) -> None:
+        """Phase 2 (on 'start'): send systemPrompt + audioContentStart."""
         if not self._nova_session:
             return
-        silence_samples = 12000  # 500ms at 24kHz
-        silence_pcm = struct.pack(f"<{silence_samples}h", *([0] * silence_samples))
-        silence_b64 = base64.b64encode(silence_pcm).decode("ascii")
-        chunk_size = 4800  # 200ms chunks
-        for i in range(0, silence_samples * 2, chunk_size * 2):
-            chunk = silence_pcm[i:i + chunk_size * 2]
-            chunk_b64 = base64.b64encode(chunk).decode("ascii")
-            await self._nova_session.send_audio(chunk_b64)
-        logger.info("Sent initial silence to Nova Sonic to trigger greeting")
+        await self._nova_session.setup_system_prompt_and_audio()
+        logger.info("Nova Sonic systemPrompt + audioContentStart sent")
 
-    async def _handle_nova_audio(self, pcm_24k_bytes: bytes) -> None:
-        """Convert Nova Sonic PCM output to mulaw and send to Twilio."""
+    async def _send_hello_audio(self) -> None:
+        """Send pre-recorded hello.pcm as a single instant write (no blocking)."""
+        if not self._nova_session:
+            return
+        try:
+            with open(self.HELLO_PCM_PATH, "rb") as f:
+                hello_pcm = f.read()
+            hello_b64 = base64.b64encode(hello_pcm).decode("ascii")
+            await self._nova_session.send_audio(hello_b64)
+            logger.info(f"Sent hello.pcm ({len(hello_pcm)} bytes) to Nova Sonic")
+        except FileNotFoundError:
+            logger.warning("hello.pcm not found, sending short silence instead")
+            silence = struct.pack("<256h", *([0] * 256))
+            await self._nova_session.send_audio(base64.b64encode(silence).decode("ascii"))
+
+    async def _watchdog(self) -> None:
+        """Restart the Nova Sonic session if no completionStart within 5 seconds."""
+        await asyncio.sleep(5.0)
+        if not self._active or not self._nova_session:
+            return
+        if self._nova_session.got_completion_start:
+            return
+        logger.warning("Watchdog: no completionStart after 5s, restarting session")
+        old_session = self._nova_session
+        self._nova_session = None
+        await old_session.stop()
+        # Each session creates its own client, so no shared state to corrupt
+        self._nova_session = NovaSonicSession(
+            on_audio_output=self._handle_nova_audio,
+            on_transcript=self._on_transcript,
+            on_session_end=self._handle_session_end,
+        )
+        await self._nova_session.start_session_and_prompt()
+        await self._nova_session.setup_system_prompt_and_audio()
+        await self._send_hello_audio()
+        logger.info("Watchdog: retry session started")
+
+    async def _handle_nova_audio(self, pcm_8k_bytes: bytes) -> None:
+        """Convert Nova Sonic PCM 8kHz output to mulaw and send to Twilio."""
         if not self._active or not self._stream_sid:
             return
-        mulaw_base64 = nova_to_twilio(pcm_24k_bytes)
+        mulaw_bytes = mulaw_encode(pcm_8k_bytes)
+        mulaw_base64 = base64.b64encode(mulaw_bytes).decode("ascii")
         media_message = {
             "event": "media",
             "streamSid": self._stream_sid,

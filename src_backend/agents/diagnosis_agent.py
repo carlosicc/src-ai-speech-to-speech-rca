@@ -365,7 +365,7 @@ async def run_diagnosis(service: str, incident_id: str) -> str:
             f"pull logs, and check recent changes. Produce a concise RCA summary with: "
             f"affected service, root cause, impact assessment, and recommended action."
         )
-        response = agent(user_prompt)
+        response = await asyncio.to_thread(agent, user_prompt)
         rca_summary = str(response)
         logger.info(f"Diagnosis complete for incident={incident_id}")
         return rca_summary

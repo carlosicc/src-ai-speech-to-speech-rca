@@ -94,12 +94,18 @@
         }
 
         .actor-icon {
-            width: 44px;
-            height: 44px;
+            width: 48px;
+            height: 48px;
             margin: 0 auto 6px;
             display: flex;
             align-items: center;
             justify-content: center;
+        }
+
+        .actor-icon img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
         }
 
         .actor-name {
@@ -196,6 +202,13 @@
             align-items: center;
             justify-content: center;
             position: relative;
+            overflow: hidden;
+        }
+
+        .svc-icon img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
         }
 
         .svc-icon svg {
@@ -395,28 +408,19 @@
     <div class="actors">
         <div class="actor">
             <div class="actor-icon">
-                <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
-                    <rect x="3" y="4" width="14" height="10" rx="1" stroke="#232F3E" stroke-width="1.5"/>
-                    <path d="M6 17h8M10 14v3" stroke="#232F3E" stroke-width="1.5"/>
-                </svg>
+                <img src="/aws-icons/Res_Client_48_Light.svg" alt="Client"/>
             </div>
             <div class="actor-name">Booth Visitor<br/>(Browser)</div>
         </div>
         <div class="actor">
             <div class="actor-icon">
-                <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
-                    <rect x="7" y="2" width="10" height="20" rx="2" stroke="#232F3E" stroke-width="1.5"/>
-                    <circle cx="12" cy="18" r="1" fill="#232F3E"/>
-                </svg>
+                <img src="/aws-icons/Res_Mobile-client_48_Light.svg" alt="Mobile Client"/>
             </div>
             <div class="actor-name">On-Call DBA<br/>(Phone)</div>
         </div>
         <div class="actor">
             <div class="actor-icon">
-                <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
-                    <circle cx="12" cy="12" r="9" stroke="#527FFF" stroke-width="1.5"/>
-                    <path d="M12 3c3 3 4 6 4 9s-1 6-4 9M12 3c-3 3-4 6-4 9s1 6 4 9M3 12h18" stroke="#527FFF" stroke-width="1.2"/>
-                </svg>
+                <img src="/aws-icons/Res_Internet_48_Light.svg" alt="Internet"/>
             </div>
             <div class="actor-name">Twilio<br/>(Voice)</div>
         </div>
@@ -429,29 +433,29 @@
         <div class="section vpc">
             <span class="section-title">Edge & Network</span>
             <div class="svc">
-                <div class="svc-icon icon-network">
-                    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7" stroke-width="1.5"/><path d="M12 5c2 2 3 4.5 3 7s-1 5-3 7M12 5c-2 2-3 4.5-3 7s1 5 3 7M5 12h14" stroke-width="1.2"/></svg>
+                <div class="svc-icon">
+                    <img src="/aws-icons/Arch_Amazon-CloudFront_64.svg" alt="CloudFront"/>
                 </div>
                 <div class="svc-name">CloudFront</div>
                 <div class="svc-detail">CDN + Basic Auth</div>
             </div>
             <div class="svc">
-                <div class="svc-icon icon-network">
-                    <svg viewBox="0 0 24 24"><rect x="5" y="8" width="14" height="8" rx="2" stroke-width="1.5"/><path d="M12 4v4M8 4h8M12 16v4M8 20h8" stroke-width="1.5"/></svg>
+                <div class="svc-icon">
+                    <img src="/aws-icons/Res_Elastic-Load-Balancing_Network-Load-Balancer_48.svg" alt="NLB"/>
                 </div>
                 <div class="svc-name">NLB</div>
                 <div class="svc-detail">TLS :443 &#x2192; :8080</div>
             </div>
             <div class="svc">
-                <div class="svc-icon icon-storage">
-                    <svg viewBox="0 0 24 24"><path d="M5 7l7-3 7 3v10l-7 3-7-3V7z" stroke-width="1.5"/><path d="M5 7l7 3 7-3M12 10v10" stroke-width="1.2"/></svg>
+                <div class="svc-icon">
+                    <img src="/aws-icons/Arch_Amazon-Simple-Storage-Service_64.svg" alt="S3"/>
                 </div>
                 <div class="svc-name">S3</div>
                 <div class="svc-detail">Frontend hosting</div>
             </div>
             <div class="svc">
-                <div class="svc-icon icon-network">
-                    <svg viewBox="0 0 24 24"><rect x="5" y="9" width="14" height="6" rx="2" stroke-width="1.5"/><path d="M9 12h6M13 10l2 2-2 2" stroke-width="1.3" stroke-linecap="round"/></svg>
+                <div class="svc-icon">
+                    <img src="/aws-icons/Res_Amazon-VPC_NAT-Gateway_48.svg" alt="NAT Gateway"/>
                 </div>
                 <div class="svc-name">NAT GW</div>
                 <div class="svc-detail">Outbound egress</div>
@@ -468,22 +472,22 @@
                 <!-- Top row: infra services -->
                 <div class="svc-grid-3">
                     <div class="svc">
-                        <div class="svc-icon icon-compute">
-                            <svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3" stroke-width="1.5"/><path d="M8 12h8M12 8v8" stroke-width="1.5" stroke-linecap="round"/></svg>
+                        <div class="svc-icon">
+                            <img src="/aws-icons/Arch_AWS-Fargate_64.svg" alt="Fargate"/>
                         </div>
                         <div class="svc-name">WebSocket<br/>Server</div>
                         <div class="svc-detail">FastAPI :8080</div>
                     </div>
                     <div class="svc">
-                        <div class="svc-icon icon-compute">
-                            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7" stroke-width="1.5"/><path d="M12 8v4l3 2" stroke-width="1.5" stroke-linecap="round"/></svg>
+                        <div class="svc-icon">
+                            <img src="/aws-icons/Arch_AWS-Fargate_64.svg" alt="Fargate"/>
                         </div>
                         <div class="svc-name">Incident<br/>Orchestrator</div>
                         <div class="svc-detail">Automated response</div>
                     </div>
                     <div class="svc">
-                        <div class="svc-icon icon-compute">
-                            <svg viewBox="0 0 24 24"><path d="M3 12h3l2-6 4 12 2-6h3" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        <div class="svc-icon">
+                            <img src="/aws-icons/Arch_AWS-Fargate_64.svg" alt="Fargate"/>
                         </div>
                         <div class="svc-name">Real-Time<br/>Metrics</div>
                         <div class="svc-detail">Live dashboards</div>
@@ -495,22 +499,22 @@
                     <span class="sub-section-title">AI Agents (Strands SDK)</span>
                     <div class="svc-grid-3">
                         <div class="svc">
-                            <div class="svc-icon icon-agent">
-                                <svg viewBox="0 0 24 24"><path d="M12 3l2.5 5h5.5l-4.5 3.5 1.5 5.5-5-3.5-5 3.5 1.5-5.5L4 8h5.5z" stroke-width="1.3"/></svg>
+                            <div class="svc-icon">
+                                <img src="/aws-icons/Arch_Amazon-Bedrock-AgentCore_64.svg" alt="AgentCore"/>
                             </div>
                             <div class="svc-name">Master Agent</div>
                             <div class="svc-detail">Orchestration + SoP</div>
                         </div>
                         <div class="svc">
-                            <div class="svc-icon icon-agent">
-                                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7" stroke-width="1.5"/><path d="M9 9l6 6M15 9l-6 6" stroke-width="1.5" stroke-linecap="round"/></svg>
+                            <div class="svc-icon">
+                                <img src="/aws-icons/Arch_Amazon-Bedrock-AgentCore_64.svg" alt="AgentCore"/>
                             </div>
                             <div class="svc-name">Diagnosis Agent</div>
                             <div class="svc-detail">Logs, health, RCA</div>
                         </div>
                         <div class="svc">
-                            <div class="svc-icon icon-agent">
-                                <svg viewBox="0 0 24 24"><path d="M12 3a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z" stroke-width="1.3"/><path d="M17 10v1a5 5 0 0 1-10 0v-1M12 17v3M9 20h6" stroke-width="1.3" stroke-linecap="round"/></svg>
+                            <div class="svc-icon">
+                                <img src="/aws-icons/Arch_Amazon-Bedrock-AgentCore_64.svg" alt="AgentCore"/>
                             </div>
                             <div class="svc-name">Voice Router</div>
                             <div class="svc-detail">Modes A / B / C</div>
@@ -522,10 +526,10 @@
             <!-- Aurora MySQL - separate from ECS -->
             <div class="section vpc" style="border-color: var(--aws-database); padding-top: 22px; padding-bottom: 12px; flex: 0.48;">
                 <span class="section-title" style="color: var(--aws-database);">Aurora MySQL (VPC Private Subnets)</span>
-                <div class="svc-row">
+                <div class="svc-row" style="gap: 48px;">
                     <div class="svc">
-                        <div class="svc-icon icon-database">
-                            <svg viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="6" ry="2.5" stroke-width="1.5"/><path d="M6 6v12c0 1.38 2.69 2.5 6 2.5s6-1.12 6-2.5V6" stroke-width="1.5"/><path d="M6 12c0 1.38 2.69 2.5 6 2.5s6-1.12 6-2.5" stroke-width="1"/></svg>
+                        <div class="svc-icon">
+                            <img src="/aws-icons/Arch_Amazon-Aurora_64.svg" alt="Aurora"/>
                         </div>
                         <div class="svc-name">Aurora Cluster</div>
                         <div class="svc-detail">Serverless v2<br/>0.5-1 ACU</div>
@@ -546,22 +550,22 @@
         <div class="section ai-layer">
             <span class="section-title">Amazon Bedrock (AI/ML)</span>
             <div class="svc">
-                <div class="svc-icon icon-ai">
-                    <svg viewBox="0 0 24 24"><path d="M12 3L5 7v6l7 4 7-4V7l-7-4z" stroke-width="1.5"/><path d="M5 7l7 4M12 11v9M19 7l-7 4" stroke-width="1"/><circle cx="12" cy="11" r="2" class="filled"/></svg>
+                <div class="svc-icon">
+                    <img src="/aws-icons/Arch_Amazon-Bedrock_64.svg" alt="Bedrock"/>
                 </div>
                 <div class="svc-name">Claude Sonnet 4.6</div>
                 <div class="svc-detail">Agent reasoning<br/>(eu-west-1)</div>
             </div>
             <div class="svc">
-                <div class="svc-icon icon-ai">
-                    <svg viewBox="0 0 24 24"><path d="M12 3a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z" stroke-width="1.3"/><path d="M17 10v1a5 5 0 0 1-10 0v-1" stroke-width="1.3" stroke-linecap="round"/><path d="M12 17v3M9 20h6" stroke-width="1.3" stroke-linecap="round"/></svg>
+                <div class="svc-icon">
+                    <img src="/aws-icons/Arch_Amazon-Nova_64.svg" alt="Nova"/>
                 </div>
                 <div class="svc-name">Nova Sonic v1</div>
                 <div class="svc-detail">Speech-to-speech<br/>Bidirectional (us-east-1)</div>
             </div>
             <div class="svc">
-                <div class="svc-icon icon-ai">
-                    <svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3" stroke-width="1.5"/><circle cx="9" cy="9" r="1.5" class="filled"/><circle cx="15" cy="9" r="1.5" class="filled"/><path d="M8 15c0-2 2-3 4-3s4 1 4 3" stroke-width="1.3" stroke-linecap="round"/></svg>
+                <div class="svc-icon">
+                    <img src="/aws-icons/Arch_Amazon-Bedrock-AgentCore_64.svg" alt="AgentCore"/>
                 </div>
                 <div class="svc-name">AgentCore</div>
                 <div class="svc-detail">BidiAgent Runtime<br/>(Mode A voice)</div>
@@ -572,29 +576,29 @@
         <div class="section data-layer">
             <span class="section-title">Data, Monitoring & Security</span>
             <div class="svc">
-                <div class="svc-icon icon-database">
-                    <svg viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="6" ry="2.5" stroke-width="1.5"/><path d="M6 6v12c0 1.38 2.69 2.5 6 2.5s6-1.12 6-2.5V6" stroke-width="1.5"/><path d="M6 10c0 1.38 2.69 2.5 6 2.5s6-1.12 6-2.5" stroke-width="1"/><path d="M6 14c0 1.38 2.69 2.5 6 2.5s6-1.12 6-2.5" stroke-width="1"/></svg>
+                <div class="svc-icon">
+                    <img src="/aws-icons/Arch_Amazon-DynamoDB_64.svg" alt="DynamoDB"/>
                 </div>
                 <div class="svc-name">DynamoDB</div>
                 <div class="svc-detail">Single-table design<br/>State & events</div>
             </div>
             <div class="svc">
-                <div class="svc-icon icon-storage">
-                    <svg viewBox="0 0 24 24"><path d="M5 7l7-3 7 3v10l-7 3-7-3V7z" stroke-width="1.5"/><path d="M5 7l7 3 7-3M12 10v10" stroke-width="1.2"/></svg>
+                <div class="svc-icon">
+                    <img src="/aws-icons/Arch_Amazon-Simple-Storage-Service_64.svg" alt="S3"/>
                 </div>
                 <div class="svc-name">S3 Raw Data</div>
                 <div class="svc-detail">Logs & snapshots<br/>Encrypted</div>
             </div>
             <div class="svc">
-                <div class="svc-icon icon-monitoring">
-                    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7" stroke-width="1.5"/><path d="M12 8v4l2.5 2.5" stroke-width="1.5" stroke-linecap="round"/></svg>
+                <div class="svc-icon">
+                    <img src="/aws-icons/Arch_Amazon-CloudWatch_64.svg" alt="CloudWatch"/>
                 </div>
                 <div class="svc-name">CloudWatch</div>
                 <div class="svc-detail">Metrics + Logs<br/>Insights queries</div>
             </div>
             <div class="svc">
-                <div class="svc-icon icon-security">
-                    <svg viewBox="0 0 24 24"><rect x="6" y="11" width="12" height="8" rx="1.5" stroke-width="1.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3" stroke-width="1.5"/><circle cx="12" cy="15" r="1.5" class="filled"/></svg>
+                <div class="svc-icon">
+                    <img src="/aws-icons/Arch_AWS-Secrets-Manager_64.svg" alt="Secrets Manager"/>
                 </div>
                 <div class="svc-name">Secrets Manager</div>
                 <div class="svc-detail">Twilio + RDS<br/>credentials</div>

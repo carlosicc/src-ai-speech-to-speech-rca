@@ -178,6 +178,18 @@ def update_incident_status(incident_id: str, new_status: str, resolution: str = 
     logger.info(f"Tool: update_incident_status(incident_id={incident_id}, status={new_status})")
 
     from shared.state import Phase, demo_state
+
+    if demo_state.phase == Phase.CALLING:
+        logger.info("Voice session active — deferring phase change to voice agent")
+        _run_async(_broadcast({
+            "type": "agent_log",
+            "payload": {
+                "message": f"DBA confirmed. Executing recovery procedure...",
+                "level": "info",
+            },
+        }))
+        return f"Incident {incident_id[:8]} noted as {new_status}. Voice session handling recovery."
+
     if new_status == "recovering":
         demo_state.phase = Phase.RECOVERING
     elif new_status == "resolved":
