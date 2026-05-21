@@ -36,7 +36,7 @@
             "use_cases": ["master_agent", "multi_step_reasoning"]
           },
           "voice": {
-            "model_id": "amazon.nova-sonic-v1:0",
+            "model_id": "amazon.nova-2-sonic-v1:0",
             "description": "Speech-to-speech real-time voice",
             "use_cases": ["emergency_call", "voice_authentication"]
           }
@@ -73,7 +73,7 @@
           "fast": { "model_id": "eu.anthropic.claude-haiku-4-5-20251001-v1:0" },
           "standard": { "model_id": "eu.anthropic.claude-sonnet-4-6-20250514-v1:0" },
           "advanced": { "model_id": "eu.anthropic.claude-opus-4-6-v1:0" },
-          "voice": { "model_id": "amazon.nova-sonic-v1:0" }
+          "voice": { "model_id": "amazon.nova-2-sonic-v1:0" }
         },
         "default_model_tier": "standard"
       },

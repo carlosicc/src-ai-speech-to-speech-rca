@@ -248,7 +248,7 @@ class BackendStack(Stack):
                     "model_id", "eu.anthropic.claude-sonnet-4-6"
                 ),
                 "NOVA_SONIC_MODEL_ID": bedrock_config.get("models", {}).get("voice", {}).get(
-                    "model_id", "amazon.nova-sonic-v1:0"
+                    "model_id", "amazon.nova-2-sonic-v1:0"
                 ),
                 "NOVA_SONIC_REGION": "us-east-1",
                 "VOICE_PASSPHRASE": "REDACTED_PASSPHRASE",
