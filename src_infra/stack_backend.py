@@ -250,7 +250,7 @@ class BackendStack(Stack):
                 "NOVA_SONIC_MODEL_ID": bedrock_config.get("models", {}).get("voice", {}).get(
                     "model_id", "amazon.nova-2-sonic-v1:0"
                 ),
-                "NOVA_SONIC_REGION": "us-east-1",
+                "NOVA_SONIC_REGION": "eu-north-1",
                 "VOICE_PASSPHRASE": "REDACTED_PASSPHRASE",
                 "VOICE_SESSION_TIMEOUT": "90",
                 "DDB_TABLE_NAME": infrastructure.main_table.table_name,
