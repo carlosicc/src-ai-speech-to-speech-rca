@@ -155,6 +155,7 @@ class TwilioMediaStreamHandler:
             on_audio_output=self._handle_nova_audio,
             on_transcript=self._on_transcript,
             on_session_end=self._handle_session_end,
+            on_barge_in=self._handle_barge_in,
         )
         await self._nova_session.start_session_and_prompt()
         logger.info("Nova Sonic session created, sessionStart + promptStart sent")
@@ -196,12 +197,18 @@ class TwilioMediaStreamHandler:
             on_audio_output=self._handle_nova_audio,
             on_transcript=self._on_transcript,
             on_session_end=self._handle_session_end,
+            on_barge_in=self._handle_barge_in,
         )
         await new_session.start_session_and_prompt()
         await new_session.setup_system_prompt_and_audio()
         self._nova_session = new_session  # Only now allow media forwarding
         await self._send_hello_audio()
         logger.info("Watchdog: retry session started")
+
+    async def _handle_barge_in(self) -> None:
+        """Clear Twilio's audio buffer when user interrupts the model."""
+        await self.send_clear()
+        logger.info("Barge-in: sent clear to Twilio")
 
     async def _handle_nova_audio(self, pcm_8k_bytes: bytes) -> None:
         """Convert Nova Sonic PCM 8kHz output to mulaw and send to Twilio."""

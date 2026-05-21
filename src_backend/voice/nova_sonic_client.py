@@ -61,10 +61,12 @@ class NovaSonicSession:
         on_audio_output: Callable[[bytes], Coroutine[Any, Any, None]],
         on_transcript: Callable[[str, str], Coroutine[Any, Any, None]],
         on_session_end: Callable[[], Coroutine[Any, Any, None]],
+        on_barge_in: Callable[[], Coroutine[Any, Any, None]] | None = None,
     ) -> None:
         self._on_audio_output = on_audio_output
         self._on_transcript = on_transcript
         self._on_session_end = on_session_end
+        self._on_barge_in = on_barge_in
 
         self._prompt_name: str = str(uuid4())
         self._audio_content_name: str = str(uuid4())
@@ -414,3 +416,7 @@ class NovaSonicSession:
             stop_reason = event["contentEnd"].get("stopReason", "")
             if stop_reason == "END_TURN":
                 logger.info("Nova Sonic turn ended")
+            elif stop_reason == "INTERRUPTED":
+                logger.info("Nova Sonic: user interrupted (barge-in)")
+                if self._on_barge_in:
+                    await self._on_barge_in()
