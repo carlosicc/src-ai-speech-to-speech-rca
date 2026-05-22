@@ -1,8 +1,44 @@
 # Plan: Closed-Loop Nova Sonic Test Harness (No Twilio, No Human)
 
+**Status**: COMPLETED (2026-05-21)  
+**Result**: Test harness built and passing. Voice quality issues fixed. Demo working well.
+
 **Goal**: Build a test harness that validates the Nova Sonic voice flow end-to-end using pre-recorded WAV files instead of real phone calls. Runs in CI or locally with just AWS credentials.
 
 **Why**: Real Twilio calls are expensive, slow, and non-deterministic. This harness feeds known-good audio directly to Nova Sonic's bidirectional API and asserts on tool invocations — the same technique used in production debugging.
+
+---
+
+## Outcome Summary
+
+### What Was Built
+- **Test harness** (`tests/harness/`) — streams WAV audio to Nova Sonic, asserts tool invocations
+- **Audio fixtures** (`tests/fixtures/audio/`) — Polly-generated WAV at 16kHz
+- **4 integration tests** — all passing (~80s total):
+  - `test_correct_passphrase_invokes_authenticate` — "REDACTED_PASSPHRASE" → auth success
+  - `test_wrong_passphrase_fails_auth` — "bravo midnight" → auth failed
+  - `test_full_flow_auth_then_restore` — "yes restore" → restore_connectivity called
+  - `test_silence_no_tools` — silence → no tools invoked
+
+### Voice Quality Fixes (Production)
+Two changes that transformed voice UX from "terrible overlapping" to "great natural conversation":
+
+1. **`turnDetectionConfiguration: { endpointingSensitivity: "MEDIUM" }`** — Real Nova 2 Sonic API parameter ([docs](https://docs.aws.amazon.com/nova/latest/nova2-userguide/sonic-input-events.html)). Without it, default turn detection waits ~10s. With MEDIUM, ~1-2s.
+
+2. **Barge-in handling** — On `stopReason: "INTERRUPTED"` (real Nova Sonic event), send Twilio `clear` event to flush audio playback buffer. Without this, Twilio keeps playing buffered audio causing voice overlap.
+
+### Config Changes (Deployed)
+- `NOVA_SONIC_REGION`: `us-east-1` → `eu-north-1` (lower latency from Europe)
+- `VOICE_PASSPHRASE`: `REDACTED_PASSPHRASE` → `REDACTED_PASSPHRASE`
+
+### Run Commands
+```bash
+# Generate audio fixtures (one-time)
+.venv/bin/python scripts/generate_test_audio.py
+
+# Run closed-loop tests
+.venv/bin/pytest tests/integration/test_nova_sonic_closed_loop.py -v
+```
 
 ---
 
@@ -11,7 +47,7 @@
 - **Production flow**: Twilio → mulaw decode → PCM 8kHz → Nova Sonic → tools → phase advance
 - **Test flow**: WAV file → resample to required format → Nova Sonic → tools → assert outcome
 - **Current code**: `src_backend/voice/nova_sonic_client.py` already implements the full bidirectional stream protocol
-- **Model**: `amazon.nova-2-sonic-v1:0` in `us-east-1`
+- **Model**: `amazon.nova-2-sonic-v1:0` in `eu-north-1`
 
 ---
 
@@ -26,7 +62,8 @@ These are non-obvious details that will cause silent failures if not respected:
 
 ### Model ID
 - `amazon.nova-2-sonic-v1:0` (this is what's deployed and working)
-- Available in: `us-east-1`, `us-west-2`, `ap-northeast-1`
+- Available in: `us-east-1`, `us-west-2`, `eu-north-1`, `ap-northeast-1`
+- **Deployed in**: `eu-north-1` (Stockholm — low latency for EU demo)
 
 ### Session Lifecycle — Mandatory Event Sequence
 1. `sessionStart` (inferenceConfiguration + optional turnDetectionConfiguration)
@@ -37,18 +74,25 @@ These are non-obvious details that will cause silent failures if not respected:
 6. `contentEnd` (audio) → `promptEnd` → `sessionEnd`
 7. Concurrently: receive and handle response events
 
-### Turn Detection (`endpointingSensitivity`)
+### Turn Detection (`endpointingSensitivity`) — CRITICAL FOR GOOD UX
 ```json
 {
   "turnDetectionConfiguration": {
-    "endpointingSensitivity": "LOW"
+    "endpointingSensitivity": "MEDIUM"
   }
 }
 ```
 - `LOW` = ~2 second pause before model responds (good for deliberate passphrase)
-- `MEDIUM` = normal conversation
-- `HIGH` = fast responses, may cut off mid-sentence
-- **This may help with the ~10s latency issue** we see in production — we currently don't set this field at all
+- `MEDIUM` = natural conversation (~1-2s) — **RECOMMENDED DEFAULT** per AWS docs
+- `HIGH` = fast responses, may cut off mid-sentence (used in test harness)
+- **Without this field, default turn detection is extremely conservative (~10s)** — this was the primary cause of latency
+
+### Barge-In Handling — CRITICAL FOR TWILIO
+When Nova Sonic sends `contentEnd` with `stopReason: "INTERRUPTED"`:
+- The model has detected user speech and stopped generating
+- Client MUST clear its audio playback buffer immediately
+- For Twilio: send `{"event": "clear", "streamSid": "..."}` to flush buffered audio
+- Without this, Twilio keeps playing old audio → voice overlap
 
 ### Barge-In JSON Pollution
 Nova Sonic sends `{ "interrupted": true }` as literal text in transcript events during barge-in. Filter this server-side.
@@ -280,19 +324,15 @@ Requires: AWS credentials with `bedrock:InvokeModelWithBidirectionalStream` perm
 
 ---
 
-## Bonus: Latency Investigation
+## ~~Bonus: Latency Investigation~~ ✓ RESOLVED
 
-The test harness gives us a controlled environment to measure latency:
-- Time from last audio chunk sent → `completionStart` received
-- Time from `completionStart` → first `audioOutput`
-- Time from audio end → tool invocation
+**Root cause confirmed**: Turn detection (waiting for silence). Without `turnDetectionConfiguration`, Nova Sonic used very conservative defaults (~10s silence before responding).
 
-This data tells us whether the 10s latency is in:
-1. Nova Sonic's turn detection (waiting for silence)
-2. Model inference time
-3. Our audio pipeline (buffering)
+**Fix**: `endpointingSensitivity: "MEDIUM"` reduced response time to ~1-2s. Used `HIGH` in test harness for even faster detection on short utterances.
 
-Adding `endpointingSensitivity: LOW` to the test harness and timing the results will immediately reveal if turn detection is the bottleneck.
+**Additional fix**: Barge-in overlap was caused by Twilio continuing to play buffered audio after Nova Sonic detected interruption. Fixed by sending Twilio `clear` event on `stopReason: "INTERRUPTED"`.
+
+**Note on echo**: Twilio's `<Stream>` defaults to `track="inbound_track"` (user voice only, not mixed). Phone echo from earpiece→mic is minimal but can be eliminated by user muting or using earbuds.
 
 ---
 
@@ -339,18 +379,13 @@ Adding `endpointingSensitivity: LOW` to the test harness and timing the results 
 
 ---
 
-## MUST DO: Change Nova Sonic Region to eu-north-1
+## ~~MUST DO: Change Nova Sonic Region to eu-north-1~~ ✓ DONE
 
-**Current**: `us-east-1` (set in `cdk.json` and `src_backend/shared/config.py` as `NOVA_SONIC_REGION`)  
-**Required**: `eu-north-1`
-
-Files to update:
-- `src_backend/shared/config.py` — default for `NOVA_SONIC_REGION`
-- `cdk.json` — if it overrides the region (check both `dev01` and any other env blocks)
-- `src_infra/stack_backend.py` — container env var `NOVA_SONIC_REGION`
-- Test harness — use `eu-north-1` as the region for all Nova Sonic calls
-
-This applies to both production and the test harness.
+Changed in all locations:
+- `src_backend/shared/config.py` — default changed to `eu-north-1`
+- `src_infra/stack_backend.py` — container env var updated
+- Test harness — uses `eu-north-1`
+- Deployed and confirmed working.
 
 ---
 
