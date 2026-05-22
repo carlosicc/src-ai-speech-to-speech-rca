@@ -42,20 +42,20 @@ def authenticate_user(spoken_passphrase: str) -> dict:
 
 
 @tool
-def restart_database(service: str = "aurora-db") -> dict:
-    """Execute database restart procedure to recover from the incident.
+def apply_network_fix(service: str = "aurora-db") -> dict:
+    """Apply the network fix to recover database connectivity.
 
     Args:
-        service: The database service to restart.
+        service: The database service to fix connectivity for.
 
     Returns:
-        Restart operation result.
+        Fix operation result.
     """
-    logger.info(f"restart_database tool called for {service}")
+    logger.info(f"apply_network_fix tool called for {service}")
     return {
-        "status": "restarted",
+        "status": "success",
         "service": service,
-        "message": f"Database {service} restart initiated. Connection pool clearing. ETA 30 seconds to full recovery.",
+        "message": f"Network fix applied for {service}. Firewall rule re-added, connections recovering. ETA 30 seconds to full recovery.",
     }
 
 

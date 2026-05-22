@@ -23,7 +23,7 @@ SYSTEM_PROMPT = (
     "Say hello then ask for passphrase. "
     "When user speaks, IMMEDIATELY use authenticate_user tool with their words. Do not ask again. "
     "If authenticated, use check_service_health then ask for authorization to restore connectivity. "
-    "When authorized, use restore_connectivity."
+    "When authorized, use apply_network_fix."
 )
 
 TOOL_SPECS = [
@@ -38,7 +38,7 @@ TOOL_SPECS = [
     },
     {
         "toolSpec": {
-            "name": "restore_connectivity",
+            "name": "apply_network_fix",
             "description": "Restore network connectivity by re-adding the firewall rule for port 3306. Only call after user is authenticated and authorizes.",
             "inputSchema": {
                 "json": '{"type":"object","properties":{"service":{"type":"string","default":"aurora-db"},"confirmation":{"type":"string"}},"required":["service"]}'
@@ -106,12 +106,12 @@ async def test_wrong_passphrase_fails_auth():
 
 @pytest.mark.asyncio
 async def test_full_flow_auth_then_restore():
-    """Full flow: correct passphrase + 'yes fix it' → authenticate then restore_connectivity."""
+    """Full flow: correct passphrase + 'yes fix it' → authenticate then apply_network_fix."""
     result = await run_nova_sonic_test(
         audio_path=_fixture_path("authorize_fix"),
         system_prompt=(
             SYSTEM_PROMPT + "\n\nIMPORTANT: The user has ALREADY been authenticated. "
-            "Skip authentication. Ask if they authorize the fix, then use restore_connectivity."
+            "Skip authentication. Ask if they authorize the fix, then use apply_network_fix."
         ),
         tools=TOOL_SPECS,
         tool_handler=mock_tool_handler,
@@ -119,8 +119,8 @@ async def test_full_flow_auth_then_restore():
     )
 
     assert result.error is None, f"Session error: {result.error}"
-    assert any(t["name"] == "restore_connectivity" for t in result.tool_invocations), (
-        f"restore_connectivity not called. Tools invoked: {[t['name'] for t in result.tool_invocations]}"
+    assert any(t["name"] == "apply_network_fix" for t in result.tool_invocations), (
+        f"apply_network_fix not called. Tools invoked: {[t['name'] for t in result.tool_invocations]}"
     )
 
 

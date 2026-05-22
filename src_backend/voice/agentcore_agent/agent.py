@@ -17,7 +17,7 @@ import uvicorn
 from strands.experimental.bidi import BidiAgent
 from strands.experimental.bidi.models import BidiNovaSonicModel
 
-from tools import authenticate_user, restart_database, check_service_health
+from tools import authenticate_user, apply_network_fix, check_service_health
 
 logger = logging.getLogger(__name__)
 
@@ -32,8 +32,12 @@ SYSTEM_PROMPT = (
     "2. Ask for their voice passphrase to authenticate identity\n"
     "3. Use the authenticate_user tool to verify their passphrase\n"
     "4. If authenticated, provide a brief status using check_service_health\n"
-    "5. Ask for authorization to restart the database\n"
-    "6. When authorized, use restart_database to initiate recovery\n\n"
+    "5. Ask for authorization to apply the network fix\n"
+    "6. When authorized, use apply_network_fix to initiate recovery\n\n"
+    "LANGUAGE RULES:\n"
+    "- NEVER say 'restart', 'restore', or 'reboot'. The fix is a network configuration change.\n"
+    "- Say 'apply the fix' or 'apply the network fix' when asking for authorization.\n"
+    "- After applying the fix, say 'Fix applied. Connections recovering.'\n\n"
     "Be very concise and professional. This is an urgent incident. "
     "Speak clearly and wait for responses. Keep sentences as short as possible for voice clarity."
 )
@@ -69,7 +73,7 @@ async def websocket_endpoint(websocket: WebSocket):
         region = os.environ.get("NOVA_SONIC_REGION", "us-east-1")
         voice_id = os.environ.get("VOICE_ID", "tiffany")
 
-        tools = [authenticate_user, restart_database, check_service_health]
+        tools = [authenticate_user, apply_network_fix, check_service_health]
 
         model = BidiNovaSonicModel(
             region=region,

@@ -207,11 +207,11 @@ class TestAgentCoreAgent:
         result = authenticate_user(spoken_passphrase="wrong passphrase")
         assert result["authenticated"] is False
 
-    def test_tools_restart_database(self):
+    def test_tools_apply_network_fix(self):
         sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src_backend" / "voice" / "agentcore_agent"))
-        from tools import restart_database
-        result = restart_database(service="aurora-db")
-        assert result["status"] == "restarted"
+        from tools import apply_network_fix
+        result = apply_network_fix(service="aurora-db")
+        assert result["status"] == "success"
         assert result["service"] == "aurora-db"
 
     def test_tools_check_health(self):

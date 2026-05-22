@@ -383,6 +383,6 @@ def _fallback_rca(service: str, incident_id: str) -> str:
         f"exhausting connection pool (150/150) and saturating disk IOPS.\n"
         f"**Impact:** Database unresponsive, ECS services in retry storm, "
         f"elevated 5xx on API Gateway.\n"
-        f"**Recommended Action:** Restart the database instance and throttle "
+        f"**Recommended Action:** Apply network fix (re-add firewall rule) and throttle "
         f"the ETL job to prevent recurrence."
     )

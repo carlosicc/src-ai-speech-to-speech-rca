@@ -44,10 +44,10 @@ def _check_service_health(service: str) -> dict[str, Any]:
     }
 
 
-def _restore_connectivity(service: str) -> dict[str, Any]:
+def _apply_network_fix(service: str) -> dict[str, Any]:
     return {
         "status": "success",
-        "message": f"Mock: firewall rule restored for {service}. Port 3306 inbound re-added.",
+        "message": f"Mock: network fix applied for {service}. Port 3306 inbound re-added.",
     }
 
 
@@ -59,7 +59,7 @@ async def mock_tool_handler(tool_name: str, tool_input: dict[str, Any]) -> dict[
         return _authenticate_user(tool_input.get("passphrase", ""))
     elif tool_name == "check_service_health":
         return _check_service_health(tool_input.get("service", "aurora-db"))
-    elif tool_name == "restore_connectivity":
-        return _restore_connectivity(tool_input.get("service", "aurora-db"))
+    elif tool_name == "apply_network_fix":
+        return _apply_network_fix(tool_input.get("service", "aurora-db"))
     else:
         return {"status": "error", "error": f"Unknown tool: {tool_name}"}

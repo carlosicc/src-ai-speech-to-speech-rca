@@ -354,7 +354,7 @@ class TestResetRestoresAccess:
 
 class TestVoiceToolRestoreConnectivity:
     @pytest.mark.asyncio
-    async def test_restore_connectivity_calls_restore_db_access(self):
+    async def test_apply_network_fix_calls_restore_db_access(self):
         from voice.voice_tools import execute_tool
 
         demo_state.trigger_incident("aurora-db")
@@ -365,15 +365,15 @@ class TestVoiceToolRestoreConnectivity:
             mock_client.authorize_security_group_ingress = MagicMock(return_value={})
             mock_get_client.return_value = mock_client
 
-            result = await execute_tool("restore_connectivity", {"service": "aurora-db"})
+            result = await execute_tool("apply_network_fix", {"service": "aurora-db"})
 
             assert result["status"] == "success"
-            assert "restored" in result["message"].lower()
+            assert "fix applied" in result["message"].lower()
             assert demo_state.phase == Phase.RECOVERING
             mock_client.authorize_security_group_ingress.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_restore_connectivity_works_even_if_aws_fails(self):
+    async def test_apply_network_fix_works_even_if_aws_fails(self):
         from voice.voice_tools import execute_tool
 
         demo_state.trigger_incident("aurora-db")
@@ -384,13 +384,13 @@ class TestVoiceToolRestoreConnectivity:
             mock_client.authorize_security_group_ingress = MagicMock(side_effect=Exception("network error"))
             mock_get_client.return_value = mock_client
 
-            result = await execute_tool("restore_connectivity", {"service": "aurora-db"})
+            result = await execute_tool("apply_network_fix", {"service": "aurora-db"})
 
             assert result["status"] == "success"
             assert demo_state.phase == Phase.RECOVERING
 
     @pytest.mark.asyncio
-    async def test_restore_connectivity_not_in_calling_phase(self):
+    async def test_apply_network_fix_not_in_calling_phase(self):
         from voice.voice_tools import execute_tool
 
         demo_state.trigger_incident("aurora-db")
@@ -401,7 +401,7 @@ class TestVoiceToolRestoreConnectivity:
             mock_client.authorize_security_group_ingress = MagicMock(return_value={})
             mock_get_client.return_value = mock_client
 
-            result = await execute_tool("restore_connectivity", {"service": "aurora-db"})
+            result = await execute_tool("apply_network_fix", {"service": "aurora-db"})
 
             assert result["status"] == "success"
             assert demo_state.phase == Phase.DIAGNOSING

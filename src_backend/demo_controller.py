@@ -72,11 +72,17 @@ class DemoController:
     async def _run_phases(self) -> None:
         while demo_state.phase != Phase.HEALTHY:
             if demo_state.phase == Phase.DIAGNOSING:
-                await self._run_master_orchestration()
-                # Master agent sets phase to CALLING internally via activate_voice_call.
-                # Don't advance — fall through to the next loop iteration which handles CALLING.
-                if demo_state.phase == Phase.CALLING:
+                await self._run_parallel_diagnosis_and_call()
+                if demo_state.phase == Phase.HEALTHY:
+                    break
+                # After voice session ends, advance through remaining phases normally
+                if demo_state.phase in (Phase.RECOVERING, Phase.RESOLVED):
+                    duration = PHASE_DURATIONS.get(demo_state.phase, 3.0)
+                    await asyncio.sleep(duration)
+                    demo_state.advance_phase()
+                    await broadcast_phase_change(demo_state)
                     continue
+                continue
             elif demo_state.phase == Phase.CALLING:
                 await self._run_voice_session()
             else:
@@ -138,6 +144,71 @@ class DemoController:
                     "incident_id": incident_id,
                 },
             })
+
+    async def _run_parallel_diagnosis_and_call(self) -> None:
+        """Run diagnosis and voice call in parallel.
+
+        The Twilio+Nova Sonic setup takes ~7s. By the time the DBA picks up and
+        the agent starts speaking, diagnosis tools have already finished.
+        """
+        service = demo_state.incident.service if demo_state.incident else "aurora-db"
+        incident_id = demo_state.incident.incident_id if demo_state.incident else "unknown"
+
+        # Start diagnosis in background (fire-and-forget — results broadcast to UI)
+        diagnosis_task = asyncio.create_task(self._run_diagnosis_only(service, incident_id))
+
+        # Immediately advance to CALLING and start voice session
+        await asyncio.sleep(0.5)  # Brief pause for UI to show DIAGNOSING
+        demo_state.phase = Phase.CALLING
+        demo_state.active_agent = "voice"
+        await broadcast_phase_change(demo_state)
+        await manager.broadcast({
+            "type": "agent_log",
+            "payload": {"message": "Master Agent → escalating to on-call DBA via voice...", "level": "warn"},
+        })
+
+        await self._run_voice_session()
+
+        # Ensure diagnosis completes (it should be done by now)
+        if not diagnosis_task.done():
+            try:
+                await asyncio.wait_for(diagnosis_task, timeout=5.0)
+            except (asyncio.TimeoutError, Exception):
+                diagnosis_task.cancel()
+
+    async def _run_diagnosis_only(self, service: str, incident_id: str) -> None:
+        """Run diagnosis agent standalone — broadcasts RCA to UI but doesn't block."""
+        from agents.master_agent import _broadcast, _notify_agent_activity
+
+        await _notify_agent_activity("master", "active")
+        await _broadcast({
+            "type": "agent_log",
+            "payload": {"message": "Master Agent activated — following SoP...", "level": "warn"},
+        })
+        await _notify_agent_activity("master", "assessing")
+        await _broadcast({
+            "type": "agent_log",
+            "payload": {"message": f"Severity: CRITICAL — {service} is a production dependency", "level": "error"},
+        })
+
+        await _notify_agent_activity("diagnosis", "running")
+        await _broadcast({
+            "type": "agent_log",
+            "payload": {"message": "Diagnosis agent activated. Pulling logs and running health checks...", "level": "info"},
+        })
+
+        from agents.diagnosis_agent import run_diagnosis, _fallback_rca
+        try:
+            rca = await asyncio.wait_for(run_diagnosis(service, incident_id), timeout=30.0)
+        except (asyncio.TimeoutError, Exception) as e:
+            logger.warning(f"Diagnosis failed in parallel: {e}")
+            rca = _fallback_rca(service, incident_id)
+
+        await _broadcast({
+            "type": "agent_log",
+            "payload": {"message": f"RCA Complete: {rca[:200]}", "level": "success"},
+        })
+        await _notify_agent_activity("diagnosis", "complete")
 
     async def _force_advance_to_calling(self, service: str, incident_id: str) -> None:
         """Last-resort: force demo to CALLING phase so it doesn't hang."""
