@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Code Showcase — How It Works</title>
+    <style>
+        :root {
+            --aws-dark: #232F3E;
+            --aws-orange: #FF9900;
+            --aws-orange-light: #FFAD33;
+            --accent-glow: rgba(255, 153, 0, 0.1);
+            --card-bg: #FAFBFC;
+            --border: #E8E8E8;
+            --text-primary: #232F3E;
+            --text-secondary: #545B64;
+            --text-muted: #879596;
+            --code-bg: #F8F9FA;
+            --code-border: #E8E8E8;
+            --line-highlight: rgba(255, 153, 0, 0.06);
+            --syntax-keyword: #8B5CF6;
+            --syntax-string: #059669;
+            --syntax-function: #2563EB;
+            --syntax-decorator: #D97706;
+            --syntax-param: #DC2626;
+            --syntax-operator: #0891B2;
+            --syntax-number: #DC2626;
+            --syntax-comment: #9CA3AF;
+            --syntax-builtin: #0D9488;
+            --diagnosis-color: #01A88D;
+            --voice-color: #7B2FF7;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Amazon Ember', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #FFFFFF;
+            color: var(--text-primary);
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Top bar */
+        .top-bar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 24px;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+
+        .aws-logo {
+            background: var(--aws-dark);
+            color: white;
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 4px 8px;
+            border-radius: 2px;
+            letter-spacing: 1px;
+        }
+
+        .top-bar h1 {
+            font-size: 1.5rem;
+            font-weight: 400;
+            color: #545B64;
+        }
+
+        .top-bar h1 strong {
+            color: var(--aws-dark);
+            font-weight: 700;
+        }
+
+        .badge {
+            margin-left: auto;
+            background: var(--aws-orange);
+            color: var(--aws-dark);
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 4px 12px;
+            border-radius: 12px;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        /* Tab bar */
+        .tab-bar {
+            display: flex;
+            padding: 0 24px;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+            background: var(--card-bg);
+        }
+
+        .tab {
+            padding: 12px 20px;
+            font-size: 0.88rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .tab:hover {
+            color: var(--text-secondary);
+        }
+
+        .tab.active {
+            color: var(--aws-orange);
+            border-bottom-color: var(--aws-orange);
+        }
+
+        .tab .tab-number {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #E8E8E8;
+            color: var(--text-muted);
+            font-size: 0.65rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .tab.active .tab-number {
+            background: var(--aws-orange);
+            color: var(--aws-dark);
+        }
+
+        /* Main content */
+        .main-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+        }
+
+        /* Code sections */
+        .code-section {
+            display: none;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .code-section.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .section-header {
+            margin-bottom: 20px;
+        }
+
+        .section-header h2 {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--aws-dark);
+            margin-bottom: 6px;
+        }
+
+        .section-header p {
+            font-size: 0.92rem;
+            color: var(--text-muted);
+            line-height: 1.5;
+        }
+
+        /* Code block card */
+        .code-block {
+            margin-bottom: 20px;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .code-block .file-label {
+            padding: 8px 16px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            background: white;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .file-label::before {
+            content: '';
+            width: 3px;
+            height: 14px;
+            background: var(--aws-orange);
+            border-radius: 2px;
+        }
+
+        .code-body {
+            padding: 12px 0;
+            overflow-x: auto;
+        }
+
+        .code-line {
+            display: flex;
+            padding: 2px 16px 2px 0;
+            font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', monospace;
+            font-size: 0.92rem;
+            line-height: 1.8;
+            min-height: 1.8em;
+        }
+
+        .code-line:hover {
+            background: rgba(0, 0, 0, 0.02);
+        }
+
+        .code-line.highlight {
+            background: var(--line-highlight);
+            border-left: 3px solid var(--aws-orange);
+        }
+
+        .code-line.highlight .line-num {
+            padding-left: 9px;
+        }
+
+        .line-num {
+            width: 44px;
+            min-width: 44px;
+            padding-left: 12px;
+            padding-right: 14px;
+            text-align: right;
+            color: #D1D5DB;
+            user-select: none;
+            font-size: 0.75rem;
+        }
+
+        .line-content {
+            flex: 1;
+            white-space: pre;
+            tab-size: 4;
+        }
+
+        /* Syntax highlighting — light theme */
+        .kw { color: var(--syntax-keyword); font-weight: 500; }
+        .fn { color: var(--syntax-function); }
+        .st { color: var(--syntax-string); }
+        .cm { color: var(--syntax-comment); font-style: italic; }
+        .dc { color: var(--syntax-decorator); font-weight: 600; }
+        .cl { color: var(--syntax-decorator); }
+        .pa { color: var(--syntax-param); }
+        .op { color: var(--syntax-operator); }
+        .nb { color: var(--syntax-number); }
+        .bi { color: var(--syntax-builtin); }
+        .tx { color: var(--text-primary); }
+
+        /* Annotation callouts */
+        .annotation {
+            margin: -4px 0 20px 0;
+            padding: 12px 16px;
+            background: white;
+            border: 1px solid var(--border);
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        .annotation::before {
+            content: '→';
+            color: var(--aws-orange);
+            font-weight: 700;
+            font-size: 0.85rem;
+            flex-shrink: 0;
+        }
+
+        .annotation strong {
+            color: var(--aws-dark);
+            font-weight: 700;
+        }
+
+        /* Separator */
+        .code-separator {
+            height: 1px;
+            background: transparent;
+            margin: 8px 0;
+        }
+
+        /* Bottom bar */
+        .bottom-bar {
+            display: flex;
+            align-items: center;
+            padding: 10px 24px;
+            border-top: 1px solid var(--border);
+            flex-shrink: 0;
+            background: var(--card-bg);
+        }
+
+        .bottom-bar .status {
+            font-size: 0.68rem;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .bottom-bar .status .dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--diagnosis-color);
+        }
+
+        .bottom-bar .libs {
+            margin-left: auto;
+            display: flex;
+            gap: 8px;
+        }
+
+        .bottom-bar .lib-badge {
+            font-size: 0.62rem;
+            font-weight: 600;
+            padding: 3px 10px;
+            border-radius: 4px;
+            background: white;
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+        }
+
+        /* Navigation arrows */
+        .nav-arrows {
+            position: fixed;
+            bottom: 56px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            z-index: 10;
+        }
+
+        .nav-arrow {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 2px solid var(--border);
+            background: white;
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+
+        .nav-arrow:hover {
+            border-color: var(--aws-orange);
+            color: var(--aws-orange);
+            box-shadow: 0 2px 12px rgba(255, 153, 0, 0.15);
+        }
+
+        .nav-arrow:active {
+            transform: scale(0.92);
+        }
+
+        .nav-arrow.disabled {
+            opacity: 0.3;
+            pointer-events: none;
+        }
+
+        .nav-indicator {
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            min-width: 40px;
+            text-align: center;
+        }
+
+        /* Auto-advance */
+        .auto-advance {
+            position: fixed;
+            bottom: 56px;
+            right: 24px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.68rem;
+            color: var(--text-muted);
+            background: white;
+            padding: 6px 12px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            cursor: pointer;
+            z-index: 10;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+
+        .auto-advance:hover {
+            border-color: var(--aws-orange);
+            color: var(--text-secondary);
+        }
+
+        .auto-advance .toggle {
+            width: 28px;
+            height: 14px;
+            border-radius: 7px;
+            background: #E8E8E8;
+            position: relative;
+            transition: background 0.2s;
+        }
+
+        .auto-advance .toggle::after {
+            content: '';
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--text-muted);
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            transition: all 0.2s;
+        }
+
+        .auto-advance.on .toggle {
+            background: var(--aws-orange);
+        }
+
+        .auto-advance.on .toggle::after {
+            background: white;
+            left: 16px;
+        }
+
+        /* SDK badge in bottom bar */
+        .sdk-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--aws-dark);
+            color: white;
+            font-size: 0.68rem;
+            font-weight: 600;
+            padding: 4px 10px;
+            border-radius: 4px;
+            margin-left: 16px;
+            letter-spacing: 0.3px;
+        }
+
+        .sdk-badge .sdk-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--aws-orange);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Top bar -->
+    <div class="top-bar">
+        <span class="aws-logo">AWS</span>
+        <h1><strong>How It Works</strong> — Code Walkthrough</h1>
+        <span class="badge">Strands Agents SDK</span>
+    </div>
+
+    <!-- Tab bar -->
+    <div class="tab-bar">
+        <div class="tab active" onclick="switchTab(0)">
+            <span class="tab-number">1</span>
+            Setup & Imports
+        </div>
+        <div class="tab" onclick="switchTab(1)">
+            <span class="tab-number">2</span>
+            Master Orchestrates
+        </div>
+        <div class="tab" onclick="switchTab(2)">
+            <span class="tab-number">3</span>
+            Agent Uses Tools
+        </div>
+        <div class="tab" onclick="switchTab(3)">
+            <span class="tab-number">4</span>
+            Voice via Nova Sonic
+        </div>
+    </div>
+
+    <!-- Main content -->
+    <div class="main-content">
+
+        <!-- TAB 1: Setup & Imports -->
+        <div class="code-section active" id="tab-0">
+            <div class="section-header">
+                <h2>Setup & Imports</h2>
+                <p>What we're building with — the libraries and configuration that power the AI Operations Center.</p>
+            </div>
+
+            <div class="code-block">
+                <div class="file-label">requirements.txt</div>
+                <div class="code-body">
+                    <div class="code-line"><span class="line-num">1</span><span class="line-content"><span class="tx">strands-agents</span><span class="op">>=</span><span class="nb">1.40.0</span></span></div>
+                    <div class="code-line"><span class="line-num">2</span><span class="line-content"><span class="tx">fastapi</span><span class="op">==</span><span class="nb">0.115.12</span></span></div>
+                    <div class="code-line"><span class="line-num">3</span><span class="line-content"><span class="tx">boto3</span><span class="op">>=</span><span class="nb">1.34.0</span></span></div>
+                    <div class="code-line"><span class="line-num">4</span><span class="line-content"><span class="tx">aws-sdk-bedrock-runtime</span><span class="op">>=</span><span class="nb">0.6.0</span></span></div>
+                    <div class="code-line"><span class="line-num">5</span><span class="line-content"><span class="tx">twilio</span><span class="op">>=</span><span class="nb">9.0.0</span></span></div>
+                </div>
+            </div>
+            <div class="annotation">
+                <strong>Strands Agents SDK</strong> — open-source framework for building AI agents with tool use on Amazon Bedrock. No custom orchestration code needed.
+            </div>
+
+            <div class="code-separator"></div>
+
+            <div class="code-block">
+                <div class="file-label">agents/master_agent.py — imports</div>
+                <div class="code-body">
+                    <div class="code-line highlight"><span class="line-num">1</span><span class="line-content"><span class="kw">from</span> <span class="tx">strands</span> <span class="kw">import</span> <span class="fn">Agent</span><span class="op">,</span> <span class="fn">tool</span></span></div>
+                    <div class="code-line highlight"><span class="line-num">2</span><span class="line-content"><span class="kw">from</span> <span class="tx">strands.models</span> <span class="kw">import</span> <span class="fn">BedrockModel</span></span></div>
+                    <div class="code-line"><span class="line-num">3</span><span class="line-content"></span></div>
+                    <div class="code-line"><span class="line-num">4</span><span class="line-content"><span class="kw">import</span> <span class="tx">boto3</span></span></div>
+                    <div class="code-line"><span class="line-num">5</span><span class="line-content"><span class="kw">import</span> <span class="tx">asyncio</span></span></div>
+                    <div class="code-line"><span class="line-num">6</span><span class="line-content"><span class="kw">import</span> <span class="tx">os</span></span></div>
+                </div>
+            </div>
+
+            <div class="code-separator"></div>
+
+            <div class="code-block">
+                <div class="file-label">agents/master_agent.py — model configuration</div>
+                <div class="code-body">
+                    <div class="code-line"><span class="line-num">8</span><span class="line-content"><span class="cm"># Model IDs injected via ECS Task Definition (set in CDK)</span></span></div>
+                    <div class="code-line highlight"><span class="line-num">9</span><span class="line-content"><span class="tx">BEDROCK_MODEL_ID</span> <span class="op">=</span> <span class="tx">os</span><span class="op">.</span><span class="fn">environ</span><span class="op">[</span><span class="st">"BEDROCK_MODEL_ID"</span><span class="op">]</span>  <span class="cm"># eu.anthropic.claude-sonnet-4-6</span></span></div>
+                    <div class="code-line highlight"><span class="line-num">10</span><span class="line-content"><span class="tx">BEDROCK_REGION</span> <span class="op">=</span> <span class="tx">os</span><span class="op">.</span><span class="fn">environ</span><span class="op">[</span><span class="st">"BEDROCK_REGION"</span><span class="op">]</span>    <span class="cm"># eu-west-1</span></span></div>
+                    <div class="code-line"><span class="line-num">11</span><span class="line-content"></span></div>
+                    <div class="code-line highlight"><span class="line-num">12</span><span class="line-content"><span class="tx">model</span> <span class="op">=</span> <span class="fn">BedrockModel</span><span class="op">(</span></span></div>
+                    <div class="code-line highlight"><span class="line-num">13</span><span class="line-content">    <span class="pa">model_id</span><span class="op">=</span><span class="tx">BEDROCK_MODEL_ID</span><span class="op">,</span></span></div>
+                    <div class="code-line highlight"><span class="line-num">14</span><span class="line-content">    <span class="pa">region_name</span><span class="op">=</span><span class="tx">BEDROCK_REGION</span><span class="op">,</span></span></div>
+                    <div class="code-line highlight"><span class="line-num">15</span><span class="line-content"><span class="op">)</span></span></div>
+                </div>
+            </div>
+            <div class="annotation">
+                <strong>BedrockModel</strong> wraps the Bedrock InvokeModel API. No API keys — uses IAM Task Role credentials automatically. Model IDs come from environment variables set in CDK.
+            </div>
+
+            <div class="code-separator"></div>
+
+            <div class="code-block">
+                <div class="file-label">agents/master_agent.py — prompt from DynamoDB</div>
+                <div class="code-body">
+                    <div class="code-line"><span class="line-num">17</span><span class="line-content"><span class="cm"># Prompts stored in DynamoDB, not hardcoded</span></span></div>
+                    <div class="code-line"><span class="line-num">18</span><span class="line-content"><span class="tx">system_prompt</span> <span class="op">=</span> <span class="fn">get_prompt_from_dynamo</span><span class="op">(</span><span class="st">"master"</span><span class="op">)</span></span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 2: Master Orchestrates -->
+        <div class="code-section" id="tab-1">
+            <div class="section-header">
+                <h2>Master Orchestrates</h2>
+                <p>The Master Agent receives an incident and decides which sub-agents to activate. Each sub-agent is just a tool.</p>
+            </div>
+
+            <div class="code-block">
+                <div class="file-label">agents/master_agent.py — agent creation</div>
+                <div class="code-body">
+                    <div class="code-line"><span class="line-num">20</span><span class="line-content"><span class="cm"># The master agent with its available tools</span></span></div>
+                    <div class="code-line highlight"><span class="line-num">21</span><span class="line-content"><span class="tx">agent</span> <span class="op">=</span> <span class="fn">Agent</span><span class="op">(</span></span></div>
+                    <div class="code-line highlight"><span class="line-num">22</span><span class="line-content">    <span class="pa">model</span><span class="op">=</span><span class="tx">model</span><span class="op">,</span></span></div>
+                    <div class="code-line highlight"><span class="line-num">23</span><span class="line-content">    <span class="pa">system_prompt</span><span class="op">=</span><span class="tx">system_prompt</span><span class="op">,</span></span></div>
+                    <div class="code-line highlight"><span class="line-num">24</span><span class="line-content">    <span class="pa">tools</span><span class="op">=[</span><span class="tx">assess_severity</span><span class="op">,</span> <span class="tx">activate_diagnosis</span><span class="op">,</span> <span class="tx">activate_voice_call</span><span class="op">,</span> <span class="tx">update_status</span><span class="op">],</span></span></div>
+                    <div class="code-line highlight"><span class="line-num">25</span><span class="line-content"><span class="op">)</span></span></div>
+                </div>
+            </div>
+            <div class="annotation">
+                <strong>4 tools = 4 capabilities.</strong> The LLM decides which tools to call and in what order, following the SoP in the system prompt.
+            </div>
+
+            <div class="code-separator"></div>
+
+            <div class="code-block">
+                <div class="file-label">agents/master_agent.py — tool that spawns a sub-agent</div>
+                <div class="code-body">
+                    <div class="code-line"><span class="line-num">27</span><span class="line-content"><span class="dc">@tool</span></span></div>
+                    <div class="code-line"><span class="line-num">28</span><span class="line-content"><span class="kw">def</span> <span class="fn">activate_diagnosis</span><span class="op">(</span><span class="pa">service</span><span class="op">:</span> <span class="bi">str</span><span class="op">,</span> <span class="pa">incident_id</span><span class="op">:</span> <span class="bi">str</span><span class="op">)</span> <span class="op">-></span> <span class="bi">str</span><span class="op">:</span></span></div>
+                    <div class="code-line"><span class="line-num">29</span><span class="line-content">    <span class="st">"""Activate the Database Agent to investigate root cause."""</span></span></div>
+                    <div class="code-line"><span class="line-num">30</span><span class="line-content"></span></div>
+                    <div class="code-line highlight"><span class="line-num">31</span><span class="line-content">    <span class="cm"># Create a sub-agent with its own tools</span></span></div>
+                    <div class="code-line highlight"><span class="line-num">32</span><span class="line-content">    <span class="tx">db_agent</span> <span class="op">=</span> <span class="fn">Agent</span><span class="op">(</span></span></div>
+                    <div class="code-line highlight"><span class="line-num">33</span><span class="line-content">        <span class="pa">model</span><span class="op">=</span><span class="tx">model</span><span class="op">,</span></span></div>
+                    <div class="code-line highlight"><span class="line-num">34</span><span class="line-content">        <span class="pa">system_prompt</span><span class="op">=</span><span class="fn">get_prompt_from_dynamo</span><span class="op">(</span><span class="st">"diagnosis"</span><span class="op">),</span></span></div>
+                    <div class="code-line highlight"><span class="line-num">35</span><span class="line-content">        <span class="pa">tools</span><span class="op">=[</span><span class="tx">check_network</span><span class="op">,</span> <span class="tx">pull_logs</span><span class="op">,</span> <span class="tx">check_health</span><span class="op">,</span> <span class="tx">check_recent_changes</span><span class="op">],</span></span></div>
+                    <div class="code-line highlight"><span class="line-num">36</span><span class="line-content">    <span class="op">)</span></span></div>
+                    <div class="code-line"><span class="line-num">37</span><span class="line-content"></span></div>
+                    <div class="code-line"><span class="line-num">38</span><span class="line-content">    <span class="cm"># Run the sub-agent and return its findings</span></span></div>
+                    <div class="code-line highlight"><span class="line-num">39</span><span class="line-content">    <span class="tx">result</span> <span class="op">=</span> <span class="tx">db_agent</span><span class="op">(</span><span class="pa">prompt</span><span class="op">=</span><span class="st">f"Investigate </span><span class="op">{</span><span class="tx">service</span><span class="op">}</span><span class="st"> for incident </span><span class="op">{</span><span class="tx">incident_id</span><span class="op">}</span><span class="st">"</span><span class="op">)</span></span></div>
+                    <div class="code-line"><span class="line-num">40</span><span class="line-content">    <span class="kw">return</span> <span class="bi">str</span><span class="op">(</span><span class="tx">result</span><span class="op">)</span></span></div>
+                </div>
+            </div>
+            <div class="annotation">
+                <strong>Agent-as-Tool pattern:</strong> A tool can spawn its own Agent. The master doesn't know the sub-agent's internal logic — it just gets back the result.
+            </div>
+
+            <div class="code-separator"></div>
+
+            <div class="code-block">
+                <div class="file-label">agents/master_agent.py — one line starts everything</div>
+                <div class="code-body">
+                    <div class="code-line"><span class="line-num">42</span><span class="line-content"><span class="cm"># This single call triggers the entire incident response</span></span></div>
+                    <div class="code-line highlight"><span class="line-num">43</span><span class="line-content"><span class="tx">response</span> <span class="op">=</span> <span class="tx">agent</span><span class="op">(</span><span class="pa">prompt</span><span class="op">=</span><span class="st">"Production DB unreachable. Service: aurora-db."</span><span class="op">)</span></span></div>
+                    <div class="code-line"><span class="line-num">44</span><span class="line-content"></span></div>
+                    <div class="code-line"><span class="line-num">45</span><span class="line-content"><span class="cm"># The agent autonomously: assesses severity, runs diagnosis,</span></span></div>
+                    <div class="code-line"><span class="line-num">46</span><span class="line-content"><span class="cm"># calls the DBA via phone, and resolves the incident.</span></span></div>
+                </div>
+            </div>
+            <div class="annotation">
+                <strong>One line.</strong> The LLM reads the SoP in the system prompt and autonomously decides which tools to call, in sequence, until the incident is resolved.
+            </div>
+        </div>
+
+        <!-- TAB 3: Agent Uses Tools -->
+        <div class="code-section" id="tab-2">
+            <div class="section-header">
+                <h2>Agent Uses Tools</h2>
+                <p>Each tool is a Python function decorated with @tool. Inside: real AWS API calls. The agent decides when to call them.</p>
+            </div>
+
+            <div class="code-block">
+                <div class="file-label">agents/diagnosis_agent.py — tool with real AWS call</div>
+                <div class="code-body">
+                    <div class="code-line highlight"><span class="line-num">1</span><span class="line-content"><span class="dc">@tool</span></span></div>
+                    <div class="code-line highlight"><span class="line-num">2</span><span class="line-content"><span class="kw">def</span> <span class="fn">check_network</span><span class="op">(</span><span class="pa">service</span><span class="op">:</span> <span class="bi">str</span><span class="op">)</span> <span class="op">-></span> <span class="bi">str</span><span class="op">:</span></span></div>
+                    <div class="code-line"><span class="line-num">3</span><span class="line-content">    <span class="st">"""Check security group rules for the specified service."""</span></span></div>
+                    <div class="code-line"><span class="line-num">4</span><span class="line-content"></span></div>
+                    <div class="code-line"><span class="line-num">5</span><span class="line-content">    <span class="tx">ec2</span> <span class="op">=</span> <span class="tx">boto3</span><span class="op">.</span><span class="fn">client</span><span class="op">(</span><span class="st">"ec2"</span><span class="op">)</span></span></div>
+                    <div class="code-line"><span class="line-num">6</span><span class="line-content">    <span class="tx">response</span> <span class="op">=</span> <span class="tx">ec2</span><span class="op">.</span><span class="fn">describe_security_groups</span><span class="op">(</span><span class="pa">GroupIds</span><span class="op">=[</span><span class="tx">RDS_SG_ID</span><span class="op">])</span></span></div>
+                    <div class="code-line"><span class="line-num">7</span><span class="line-content"></span></div>
+                    <div class="code-line"><span class="line-num">8</span><span class="line-content">    <span class="tx">rules</span> <span class="op">=</span> <span class="tx">response</span><span class="op">[</span><span class="st">"SecurityGroups"</span><span class="op">][</span><span class="nb">0</span><span class="op">][</span><span class="st">"IpPermissions"</span><span class="op">]</span></span></div>
+                    <div class="code-line"><span class="line-num">9</span><span class="line-content">    <span class="kw">if not</span> <span class="tx">rules</span><span class="op">:</span></span></div>
+                    <div class="code-line"><span class="line-num">10</span><span class="line-content">        <span class="kw">return</span> <span class="st">"CRITICAL: No inbound rules — port 3306 blocked"</span></span></div>
+                    <div class="code-line"><span class="line-num">11</span><span class="line-content">    <span class="kw">return</span> <span class="st">f"OK: </span><span class="op">{</span><span class="bi">len</span><span class="op">(</span><span class="tx">rules</span><span class="op">)</span><span class="op">}</span><span class="st"> inbound rules active"</span></span></div>
+                </div>
+            </div>
+            <div class="annotation">
+                <strong>Real AWS call.</strong> This queries the actual RDS security group. In the demo, the SG rule is revoked to simulate the outage — this tool discovers it.
+            </div>
+
+            <div class="code-separator"></div>
+
+            <div class="code-block">
+                <div class="file-label">agents/diagnosis_agent.py — another tool: CloudWatch Logs</div>
+                <div class="code-body">
+                    <div class="code-line highlight"><span class="line-num">13</span><span class="line-content"><span class="dc">@tool</span></span></div>
+                    <div class="code-line highlight"><span class="line-num">14</span><span class="line-content"><span class="kw">def</span> <span class="fn">pull_logs</span><span class="op">(</span><span class="pa">service</span><span class="op">:</span> <span class="bi">str</span><span class="op">,</span> <span class="pa">minutes</span><span class="op">:</span> <span class="bi">int</span> <span class="op">=</span> <span class="nb">5</span><span class="op">)</span> <span class="op">-></span> <span class="bi">str</span><span class="op">:</span></span></div>
+                    <div class="code-line"><span class="line-num">15</span><span class="line-content">    <span class="st">"""Pull recent error logs from CloudWatch Logs Insights."""</span></span></div>
+                    <div class="code-line"><span class="line-num">16</span><span class="line-content"></span></div>
+                    <div class="code-line"><span class="line-num">17</span><span class="line-content">    <span class="tx">logs</span> <span class="op">=</span> <span class="tx">boto3</span><span class="op">.</span><span class="fn">client</span><span class="op">(</span><span class="st">"logs"</span><span class="op">)</span></span></div>
+                    <div class="code-line"><span class="line-num">18</span><span class="line-content">    <span class="tx">query</span> <span class="op">=</span> <span class="st">"fields @timestamp, @message | filter @message like /ERROR/"</span></span></div>
+                    <div class="code-line"><span class="line-num">19</span><span class="line-content"></span></div>
+                    <div class="code-line"><span class="line-num">20</span><span class="line-content">    <span class="tx">result</span> <span class="op">=</span> <span class="tx">logs</span><span class="op">.</span><span class="fn">start_query</span><span class="op">(</span></span></div>
+                    <div class="code-line"><span class="line-num">21</span><span class="line-content">        <span class="pa">logGroupName</span><span class="op">=</span><span class="st">f"/aws/rds/cluster/</span><span class="op">{</span><span class="tx">service</span><span class="op">}</span><span class="st">/error"</span><span class="op">,</span></span></div>
+                    <div class="code-line"><span class="line-num">22</span><span class="line-content">        <span class="pa">queryString</span><span class="op">=</span><span class="tx">query</span><span class="op">,</span></span></div>
+                    <div class="code-line"><span class="line-num">23</span><span class="line-content">        <span class="pa">startTime</span><span class="op">=</span><span class="fn">minutes_ago</span><span class="op">(</span><span class="tx">minutes</span><span class="op">),</span></span></div>
+                    <div class="code-line"><span class="line-num">24</span><span class="line-content">    <span class="op">)</span></span></div>
+                    <div class="code-line"><span class="line-num">25</span><span class="line-content">    <span class="kw">return</span> <span class="fn">format_log_results</span><span class="op">(</span><span class="tx">result</span><span class="op">)</span></span></div>
+                </div>
+            </div>
+
+            <div class="code-separator"></div>
+
+            <div class="code-block">
+                <div class="file-label">agents/diagnosis_agent.py — the agent decides what to run</div>
+                <div class="code-body">
+                    <div class="code-line"><span class="line-num">27</span><span class="line-content"><span class="cm"># The agent calls tools autonomously based on its findings</span></span></div>
+                    <div class="code-line"><span class="line-num">28</span><span class="line-content"><span class="cm"># Typical flow: check_network → finds blocked port →</span></span></div>
+                    <div class="code-line"><span class="line-num">29</span><span class="line-content"><span class="cm">#   pull_logs → confirms connection timeouts →</span></span></div>
+                    <div class="code-line"><span class="line-num">30</span><span class="line-content"><span class="cm">#   check_health → confirms DB unreachable →</span></span></div>
+                    <div class="code-line"><span class="line-num">31</span><span class="line-content"><span class="cm">#   returns: "Root cause: SG rule removed, port 3306 blocked"</span></span></div>
+                    <div class="code-line"><span class="line-num">32</span><span class="line-content"></span></div>
+                    <div class="code-line highlight"><span class="line-num">33</span><span class="line-content"><span class="tx">rca</span> <span class="op">=</span> <span class="tx">db_agent</span><span class="op">(</span><span class="pa">prompt</span><span class="op">=</span><span class="st">"Investigate aurora-db connectivity failure"</span><span class="op">)</span></span></div>
+                    <div class="code-line"><span class="line-num">34</span><span class="line-content"><span class="cm"># rca = "Root cause: Security group rule removed. Port 3306 has</span></span></div>
+                    <div class="code-line"><span class="line-num">35</span><span class="line-content"><span class="cm">#         no inbound rules. Recommend: restore ECS→RDS rule."</span></span></div>
+                </div>
+            </div>
+            <div class="annotation">
+                <strong>No if/else orchestration.</strong> The LLM decides which tools to call based on intermediate results. It reasons about what to check next.
+            </div>
+        </div>
+
+        <!-- TAB 4: Voice via Nova Sonic -->
+        <div class="code-section" id="tab-3">
+            <div class="section-header">
+                <h2>Voice via Nova Sonic</h2>
+                <p>The AI calls a real phone number, speaks to the DBA, authenticates by voice passphrase, and executes the fix — all in real-time.</p>
+            </div>
+
+            <div class="code-block">
+                <div class="file-label">voice/nova_sonic_client.py — bidirectional stream</div>
+                <div class="code-body">
+                    <div class="code-line"><span class="line-num">1</span><span class="line-content"><span class="kw">from</span> <span class="tx">aws_sdk_bedrock_runtime</span><span class="op">.</span><span class="tx">client</span> <span class="kw">import</span> <span class="fn">BedrockRuntimeClient</span></span></div>
+                    <div class="code-line"><span class="line-num">2</span><span class="line-content"></span></div>
+                    <div class="code-line"><span class="line-num">3</span><span class="line-content"><span class="cm"># Open a bidirectional audio stream to Nova Sonic</span></span></div>
+                    <div class="code-line highlight"><span class="line-num">4</span><span class="line-content"><span class="tx">stream</span> <span class="op">=</span> <span class="kw">await</span> <span class="tx">client</span><span class="op">.</span><span class="fn">invoke_model_with_bidirectional_stream</span><span class="op">(</span></span></div>
+                    <div class="code-line highlight"><span class="line-num">5</span><span class="line-content">    <span class="pa">model_id</span><span class="op">=</span><span class="st">"amazon.nova-sonic-v1:0"</span></span></div>
+                    <div class="code-line highlight"><span class="line-num">6</span><span class="line-content"><span class="op">)</span></span></div>
+                    <div class="code-line"><span class="line-num">7</span><span class="line-content"></span></div>
+                    <div class="code-line"><span class="line-num">8</span><span class="line-content"><span class="cm"># Configure: voice, turn detection, tools</span></span></div>
+                    <div class="code-line"><span class="line-num">9</span><span class="line-content"><span class="kw">await</span> <span class="fn">send_session_start</span><span class="op">(</span><span class="pa">voice</span><span class="op">=</span><span class="st">"matthew"</span><span class="op">,</span> <span class="pa">sensitivity</span><span class="op">=</span><span class="st">"MEDIUM"</span><span class="op">)</span></span></div>
+                    <div class="code-line"><span class="line-num">10</span><span class="line-content"><span class="kw">await</span> <span class="fn">send_system_prompt</span><span class="op">(</span><span class="pa">prompt</span><span class="op">=</span><span class="tx">voice_system_prompt</span><span class="op">)</span></span></div>
+                    <div class="code-line"><span class="line-num">11</span><span class="line-content"><span class="kw">await</span> <span class="fn">send_tools_config</span><span class="op">(</span><span class="pa">tools</span><span class="op">=[</span><span class="tx">authenticate_user</span><span class="op">,</span> <span class="tx">apply_network_fix</span><span class="op">])</span></span></div>
+                </div>
+            </div>
+            <div class="annotation">
+                <strong>Nova Sonic</strong> — speech-to-speech model on Bedrock. Streams audio in both directions simultaneously. Supports tool use mid-conversation.
+            </div>
+
+            <div class="code-separator"></div>
+
+            <div class="code-block">
+                <div class="file-label">voice/twilio_handler.py — place the phone call</div>
+                <div class="code-body">
+                    <div class="code-line"><span class="line-num">13</span><span class="line-content"><span class="kw">from</span> <span class="tx">twilio.rest</span> <span class="kw">import</span> <span class="fn">Client</span></span></div>
+                    <div class="code-line"><span class="line-num">14</span><span class="line-content"></span></div>
+                    <div class="code-line"><span class="line-num">15</span><span class="line-content"><span class="cm"># Place outbound call, connect Twilio's audio to our WebSocket</span></span></div>
+                    <div class="code-line highlight"><span class="line-num">16</span><span class="line-content"><span class="tx">call</span> <span class="op">=</span> <span class="tx">twilio_client</span><span class="op">.</span><span class="tx">calls</span><span class="op">.</span><span class="fn">create</span><span class="op">(</span></span></div>
+                    <div class="code-line highlight"><span class="line-num">17</span><span class="line-content">    <span class="pa">to</span><span class="op">=</span><span class="tx">dba_phone_number</span><span class="op">,</span></span></div>
+                    <div class="code-line highlight"><span class="line-num">18</span><span class="line-content">    <span class="pa">twiml</span><span class="op">=</span><span class="st">'&lt;Response&gt;&lt;Connect&gt;&lt;Stream url="wss://our-server/twilio/ws"/&gt;&lt;/Connect&gt;&lt;/Response&gt;'</span></span></div>
+                    <div class="code-line highlight"><span class="line-num">19</span><span class="line-content"><span class="op">)</span></span></div>
+                </div>
+            </div>
+
+            <div class="code-separator"></div>
+
+            <div class="code-block">
+                <div class="file-label">voice/twilio_handler.py — audio bridge (Twilio ↔ Nova Sonic)</div>
+                <div class="code-body">
+                    <div class="code-line"><span class="line-num">21</span><span class="line-content"><span class="cm"># Twilio sends mulaw 8kHz → we convert → Nova Sonic gets PCM 24kHz</span></span></div>
+                    <div class="code-line"><span class="line-num">22</span><span class="line-content"><span class="kw">async def</span> <span class="fn">on_twilio_media</span><span class="op">(</span><span class="pa">payload</span><span class="op">):</span></span></div>
+                    <div class="code-line"><span class="line-num">23</span><span class="line-content">    <span class="tx">mulaw_bytes</span> <span class="op">=</span> <span class="fn">b64decode</span><span class="op">(</span><span class="tx">payload</span><span class="op">)</span></span></div>
+                    <div class="code-line highlight"><span class="line-num">24</span><span class="line-content">    <span class="tx">pcm_8k</span>  <span class="op">=</span> <span class="fn">mulaw_decode</span><span class="op">(</span><span class="tx">mulaw_bytes</span><span class="op">)</span>       <span class="cm"># G.711 → PCM 16-bit</span></span></div>
+                    <div class="code-line highlight"><span class="line-num">25</span><span class="line-content">    <span class="tx">pcm_24k</span> <span class="op">=</span> <span class="fn">resample_8k_to_24k</span><span class="op">(</span><span class="tx">pcm_8k</span><span class="op">)</span>  <span class="cm"># 8kHz → 24kHz</span></span></div>
+                    <div class="code-line highlight"><span class="line-num">26</span><span class="line-content">    <span class="kw">await</span> <span class="tx">nova_session</span><span class="op">.</span><span class="fn">send_audio</span><span class="op">(</span><span class="tx">pcm_24k</span><span class="op">)</span>  <span class="cm"># → Nova Sonic</span></span></div>
+                </div>
+            </div>
+
+            <div class="code-separator"></div>
+
+            <div class="code-block">
+                <div class="file-label">voice/nova_sonic_client.py — tool use during live call</div>
+                <div class="code-body">
+                    <div class="code-line"><span class="line-num">28</span><span class="line-content"><span class="cm"># Nova Sonic can call tools mid-conversation!</span></span></div>
+                    <div class="code-line"><span class="line-num">29</span><span class="line-content"><span class="cm"># DBA says passphrase → model triggers authenticate_user</span></span></div>
+                    <div class="code-line"><span class="line-num">30</span><span class="line-content"><span class="cm"># DBA approves fix → model triggers apply_network_fix</span></span></div>
+                    <div class="code-line"><span class="line-num">31</span><span class="line-content"></span></div>
+                    <div class="code-line"><span class="line-num">32</span><span class="line-content"><span class="kw">async def</span> <span class="fn">handle_tool_use</span><span class="op">(</span><span class="pa">event</span><span class="op">):</span></span></div>
+                    <div class="code-line"><span class="line-num">33</span><span class="line-content">    <span class="tx">tool_name</span> <span class="op">=</span> <span class="tx">event</span><span class="op">[</span><span class="st">"toolUse"</span><span class="op">][</span><span class="st">"toolName"</span><span class="op">]</span></span></div>
+                    <div class="code-line"><span class="line-num">34</span><span class="line-content"></span></div>
+                    <div class="code-line highlight"><span class="line-num">35</span><span class="line-content">    <span class="kw">if</span> <span class="tx">tool_name</span> <span class="op">==</span> <span class="st">"apply_network_fix"</span><span class="op">:</span></span></div>
+                    <div class="code-line highlight"><span class="line-num">36</span><span class="line-content">        <span class="cm"># Re-authorize the security group rule</span></span></div>
+                    <div class="code-line highlight"><span class="line-num">37</span><span class="line-content">        <span class="tx">ec2</span><span class="op">.</span><span class="fn">authorize_security_group_ingress</span><span class="op">(</span></span></div>
+                    <div class="code-line highlight"><span class="line-num">38</span><span class="line-content">            <span class="pa">GroupId</span><span class="op">=</span><span class="tx">RDS_SG_ID</span><span class="op">,</span></span></div>
+                    <div class="code-line highlight"><span class="line-num">39</span><span class="line-content">            <span class="pa">IpPermissions</span><span class="op">=[{</span><span class="st">"FromPort"</span><span class="op">:</span> <span class="nb">3306</span><span class="op">,</span> <span class="st">"ToPort"</span><span class="op">:</span> <span class="nb">3306</span><span class="op">,</span> <span class="op">...}]</span></span></div>
+                    <div class="code-line highlight"><span class="line-num">40</span><span class="line-content">        <span class="op">)</span></span></div>
+                    <div class="code-line"><span class="line-num">41</span><span class="line-content">        <span class="kw">return</span> <span class="st">"Security group rule restored. DB recovering."</span></span></div>
+                </div>
+            </div>
+            <div class="annotation">
+                <strong>The voice AI executes real AWS actions.</strong> During a live phone call, Nova Sonic recognizes the DBA's approval and triggers the actual fix — restoring the security group rule that caused the outage.
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Navigation arrows -->
+    <div class="nav-arrows">
+        <button class="nav-arrow" id="nav-prev" onclick="prevTab()">&#x2190;</button>
+        <span class="nav-indicator" id="nav-indicator">1 / 4</span>
+        <button class="nav-arrow" id="nav-next" onclick="nextTab()">&#x2192;</button>
+    </div>
+
+    <!-- Auto-advance toggle -->
+    <div class="auto-advance" onclick="toggleAutoAdvance()">
+        <span>Auto-advance</span>
+        <div class="toggle"></div>
+    </div>
+
+    <!-- Bottom bar -->
+    <div class="bottom-bar">
+        <div class="status">
+            <span class="dot"></span>
+            Python 3.12 &nbsp;|&nbsp; Strands Agents SDK
+        </div>
+        <div class="libs">
+            <span class="lib-badge">strands-agents</span>
+            <span class="lib-badge">boto3</span>
+            <span class="lib-badge">nova-sonic</span>
+            <span class="lib-badge">twilio</span>
+            <span class="lib-badge">fastapi</span>
+        </div>
+        <span class="sdk-badge">
+            <span class="sdk-dot"></span>
+            Strands Agents SDK + Amazon Bedrock
+        </span>
+    </div>
+
+    <script>
+        let currentTab = 0;
+        let autoAdvance = false;
+        let advanceTimer = null;
+        const TAB_COUNT = 4;
+        const ADVANCE_INTERVAL = 15000;
+
+        function switchTab(index) {
+            currentTab = index;
+
+            document.querySelectorAll('.tab').forEach((tab, i) => {
+                tab.classList.toggle('active', i === index);
+            });
+
+            document.querySelectorAll('.code-section').forEach((section, i) => {
+                section.classList.toggle('active', i === index);
+            });
+
+            document.querySelector('.main-content').scrollTop = 0;
+            updateNavArrows();
+
+            if (autoAdvance) {
+                resetAutoAdvance();
+            }
+        }
+
+        function prevTab() {
+            if (currentTab > 0) switchTab(currentTab - 1);
+        }
+
+        function nextTab() {
+            if (currentTab < TAB_COUNT - 1) switchTab(currentTab + 1);
+        }
+
+        function updateNavArrows() {
+            document.getElementById('nav-prev').classList.toggle('disabled', currentTab === 0);
+            document.getElementById('nav-next').classList.toggle('disabled', currentTab === TAB_COUNT - 1);
+            document.getElementById('nav-indicator').textContent = (currentTab + 1) + ' / ' + TAB_COUNT;
+        }
+
+        function toggleAutoAdvance() {
+            autoAdvance = !autoAdvance;
+            document.querySelector('.auto-advance').classList.toggle('on', autoAdvance);
+            if (autoAdvance) {
+                resetAutoAdvance();
+            } else {
+                clearInterval(advanceTimer);
+            }
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight') nextTab();
+            if (e.key === 'ArrowLeft') prevTab();
+            if (e.key === 'Escape') window.parent.postMessage('close-diagram', '*');
+        });
+
+        function resetAutoAdvance() {
+            clearInterval(advanceTimer);
+            advanceTimer = setInterval(() => {
+                switchTab((currentTab + 1) % TAB_COUNT);
+            }, ADVANCE_INTERVAL);
+        }
+    </script>
+</body>
+</html>

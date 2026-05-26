@@ -581,6 +581,40 @@ html, body, #root {
   pointer-events: auto;
 }
 
+/* Code Showcase button — positioned bottom-right, independent */
+.diagram-code-btn {
+  position: absolute;
+  bottom: 24px;
+  right: 32px;
+  z-index: 100;
+  pointer-events: auto;
+  background: #1a2040 !important;
+  border-color: #5a6aff !important;
+  box-shadow:
+    inset -2px -2px 0 #0a1020,
+    inset 2px 2px 0 #7a8aff,
+    0 4px 0 #0a1020,
+    0 6px 8px rgba(0, 0, 0, 0.4) !important;
+}
+
+.diagram-code-btn:hover {
+  background: #2a3060 !important;
+  border-color: #7a8aff !important;
+  box-shadow:
+    inset -2px -2px 0 #0a1020,
+    inset 2px 2px 0 #9aaaff,
+    0 6px 0 #0a1020,
+    0 8px 12px rgba(0, 0, 0, 0.5) !important;
+}
+
+.diagram-code-btn .diagram-pixel-icon {
+  color: #a0b0ff;
+}
+
+.diagram-code-btn .diagram-pixel-label {
+  color: #7a8aff;
+}
+
 /* Diagram Overlay / Modal */
 .diagram-overlay {
   position: fixed;

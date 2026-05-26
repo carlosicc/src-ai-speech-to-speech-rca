@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-type DiagramType = "architecture" | "sequence" | "database" | "voice" | "master";
+type DiagramType = "architecture" | "sequence" | "database" | "voice" | "master" | "code";
 
 const DIAGRAMS: Record<DiagramType, { label: string; file: string; icon: string }> = {
   architecture: {
@@ -28,6 +28,11 @@ const DIAGRAMS: Record<DiagramType, { label: string; file: string; icon: string 
     file: "/diagrams/masterAgent.html",
     icon: "\uD83E\uDDE0",
   },
+  code: {
+    label: "Code",
+    file: "/diagrams/codeShowcaseLight.html",
+    icon: "\uD83D\uDCBB",
+  },
 };
 
 const BOTTOM_BUTTONS: DiagramType[] = ["architecture", "sequence", "voice"];
@@ -40,8 +45,15 @@ export function DiagramViewer() {
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setActive(null);
     };
+    const handleMessage = (e: MessageEvent) => {
+      if (e.data === "close-diagram") setActive(null);
+    };
     window.addEventListener("keydown", handleKey);
-    return () => window.removeEventListener("keydown", handleKey);
+    window.addEventListener("message", handleMessage);
+    return () => {
+      window.removeEventListener("keydown", handleKey);
+      window.removeEventListener("message", handleMessage);
+    };
   }, [active]);
 
   return (
@@ -64,6 +76,16 @@ export function DiagramViewer() {
       >
         <span className="diagram-pixel-icon">{DIAGRAMS.database.icon}</span>
         <span className="diagram-pixel-label">{DIAGRAMS.database.label}</span>
+      </button>
+
+      {/* Code showcase button — independent, bottom-right */}
+      <button
+        className="diagram-pixel-btn diagram-code-btn"
+        onClick={() => setActive("code")}
+        title="View Code Walkthrough"
+      >
+        <span className="diagram-pixel-icon">{DIAGRAMS.code.icon}</span>
+        <span className="diagram-pixel-label">{DIAGRAMS.code.label}</span>
       </button>
 
       {/* Bottom bar buttons */}
