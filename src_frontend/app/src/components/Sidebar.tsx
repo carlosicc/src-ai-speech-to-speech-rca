@@ -29,7 +29,10 @@ export function Sidebar() {
 
   return (
     <div className="sidebar">
-      <h1 className="sidebar-title">AI OPERATIONS CENTER</h1>
+      <div className="sidebar-header">
+        <h1 className="sidebar-title">AI OPERATIONS CENTER</h1>
+        <img src="/pace-logo.png" alt="PACE" className="pace-logo" />
+      </div>
 
       <section className="sidebar-section">
         <h2>SYSTEMS OVERVIEW</h2>
