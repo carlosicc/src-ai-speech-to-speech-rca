@@ -417,6 +417,31 @@ html, body, #root {
   word-break: break-word;
 }
 
+/* AWS Logo — upper-left of canvas area */
+.aws-logo {
+  position: absolute;
+  top: 20px;
+  left: 24px;
+  height: 72px;
+  width: auto;
+  z-index: 100;
+  pointer-events: none;
+  opacity: 0.9;
+}
+
+/* Sidebar Header — title + PACE logo */
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.pace-logo {
+  height: 96px;
+  width: auto;
+  opacity: 0.9;
+}
+
 /* City Title — pixel-art style, overlaid on canvas sky area */
 .city-title {
   position: absolute;
@@ -461,6 +486,7 @@ html, body, #root {
   align-items: center;
   gap: 4px;
   padding: 8px 14px 6px;
+  min-width: 64px;
   background: #2a3a1e;
   border: 3px solid #5a7a3a;
   border-radius: 2px;
@@ -510,6 +536,49 @@ html, body, #root {
   text-transform: uppercase;
   color: #a0d060;
   text-shadow: 0 1px 0 #1a2a10;
+}
+
+/* Master Agent button — positioned above building, right side */
+.diagram-master-btn {
+  position: absolute;
+  top: 130px;
+  right: 80px;
+  z-index: 100;
+  pointer-events: auto;
+  background: #3a2a10 !important;
+  border-color: #c87800 !important;
+  box-shadow:
+    inset -2px -2px 0 #2a1a08,
+    inset 2px 2px 0 #e89a20,
+    0 4px 0 #2a1a08,
+    0 6px 8px rgba(0, 0, 0, 0.4) !important;
+}
+
+.diagram-master-btn:hover {
+  background: #4a3a18 !important;
+  border-color: #e89a20 !important;
+  box-shadow:
+    inset -2px -2px 0 #2a1a08,
+    inset 2px 2px 0 #ffb840,
+    0 6px 0 #2a1a08,
+    0 8px 12px rgba(0, 0, 0, 0.5) !important;
+}
+
+.diagram-master-btn .diagram-pixel-icon {
+  color: #ffc860;
+}
+
+.diagram-master-btn .diagram-pixel-label {
+  color: #e89a20;
+}
+
+/* DB Agent button — positioned inside Aurora DB room, top-right corner */
+.diagram-db-btn {
+  position: absolute;
+  top: 47%;
+  left: 28%;
+  z-index: 100;
+  pointer-events: auto;
 }
 
 /* Diagram Overlay / Modal */

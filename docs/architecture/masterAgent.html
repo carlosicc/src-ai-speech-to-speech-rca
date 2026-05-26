@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Master Agent — Incident Orchestrator</title>
+    <style>
+        :root {
+            --aws-dark: #232F3E;
+            --aws-orange: #FF9900;
+            --aws-orange-light: #FFAD33;
+            --accent-glow: rgba(255, 153, 0, 0.1);
+            --card-bg: #FAFBFC;
+            --agent-active: #10B981;
+            --agent-placeholder: #9CA3AF;
+            --diagnosis-color: #01A88D;
+            --voice-color: #7B2FF7;
+            --connector-color: #D5DBDB;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Amazon Ember', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #FFFFFF;
+            color: var(--aws-dark);
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Top bar */
+        .top-bar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 24px;
+            border-bottom: 1px solid #E8E8E8;
+            flex-shrink: 0;
+        }
+
+        .aws-logo {
+            background: var(--aws-dark);
+            color: white;
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 4px 8px;
+            border-radius: 2px;
+            letter-spacing: 1px;
+        }
+
+        .top-bar h1 {
+            font-size: 1.5rem;
+            font-weight: 400;
+            color: #545B64;
+        }
+
+        .top-bar h1 strong {
+            color: var(--aws-dark);
+            font-weight: 700;
+        }
+
+        .badge {
+            margin-left: auto;
+            background: var(--aws-orange);
+            color: var(--aws-dark);
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 4px 12px;
+            border-radius: 12px;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        /* Main layout — prompt left, orchestration right */
+        .main {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 340px 1fr;
+            gap: 0;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        /* Left panel — Prompt */
+        .panel-prompt {
+            padding: 24px;
+            border-right: 1px solid #E8E8E8;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            overflow: auto;
+        }
+
+        .panel-title {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            color: #879596;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .panel-title::before {
+            content: '';
+            width: 3px;
+            height: 14px;
+            background: var(--aws-orange);
+            border-radius: 2px;
+        }
+
+        .prompt-card {
+            background: var(--card-bg);
+            border: 1px solid #E8E8E8;
+            border-left: 4px solid var(--aws-orange);
+            border-radius: 6px;
+            padding: 20px;
+            font-size: 0.85rem;
+            line-height: 1.7;
+            color: #37474F;
+            flex: 1;
+        }
+
+        .prompt-card .role {
+            font-weight: 700;
+            color: var(--aws-orange);
+            font-size: 0.95rem;
+            margin-bottom: 12px;
+        }
+
+        .prompt-card ol {
+            padding-left: 20px;
+            margin: 12px 0;
+        }
+
+        .prompt-card ol li {
+            margin-bottom: 6px;
+        }
+
+        .prompt-card .emphasis {
+            color: var(--aws-dark);
+            font-weight: 600;
+        }
+
+        .prompt-card .decision-tree {
+            margin-top: 12px;
+            padding: 10px 12px;
+            background: rgba(255, 153, 0, 0.05);
+            border: 1px solid rgba(255, 153, 0, 0.2);
+            border-radius: 4px;
+            font-size: 0.78rem;
+            color: #37474F;
+        }
+
+        .prompt-card .decision-tree .branch {
+            margin-left: 12px;
+            color: #546E7A;
+        }
+
+        .prompt-meta {
+            display: flex;
+            gap: 16px;
+            font-size: 0.72rem;
+            color: #879596;
+        }
+
+        .prompt-meta span {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .prompt-meta .dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--aws-orange);
+        }
+
+        /* Right panel — Orchestration map */
+        .panel-orchestration {
+            padding: 24px 28px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            overflow: auto;
+        }
+
+        .panel-orchestration .panel-title {
+            font-size: 0.95rem;
+            margin-bottom: 8px;
+        }
+
+        /* Orchestration visual: tools → connectors → agents */
+        .orch-map {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr 60px 1fr;
+            gap: 0;
+            align-content: center;
+            row-gap: 14px;
+        }
+
+        /* Tool cards (left column) */
+        .tool-card {
+            background: var(--card-bg);
+            border: 1px solid #E8E8E8;
+            border-radius: 8px;
+            padding: 14px 16px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .tool-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--aws-orange);
+        }
+
+        .tool-card.spawns-diagnosis::before { background: var(--diagnosis-color); }
+        .tool-card.spawns-voice::before { background: var(--voice-color); }
+
+        /* "Add your own" card */
+        .add-your-own {
+            grid-row: span 1;
+            border: 2px dashed #D5DBDB;
+            border-radius: 8px;
+            padding: 14px 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            opacity: 0.7;
+            gap: 4px;
+        }
+
+        .add-your-own-icon {
+            font-size: 1.2rem;
+            margin-bottom: 2px;
+        }
+
+        .add-your-own-text {
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: var(--aws-dark);
+        }
+
+        .add-your-own-sub {
+            font-size: 0.65rem;
+            color: #879596;
+        }
+
+        .add-your-own-spacer {
+            /* empty left cell for the second placeholder row */
+        }
+
+        .tool-icon {
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.95rem;
+            margin-bottom: 6px;
+            background: rgba(255, 153, 0, 0.08);
+        }
+
+        .tool-card.spawns-diagnosis .tool-icon { background: rgba(1, 168, 141, 0.08); }
+        .tool-card.spawns-voice .tool-icon { background: rgba(123, 47, 247, 0.08); }
+
+        .tool-name {
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: var(--aws-dark);
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            margin-bottom: 3px;
+        }
+
+        .tool-desc {
+            font-size: 0.68rem;
+            color: #546E7A;
+            line-height: 1.4;
+        }
+
+        /* Connector (center column) */
+        .connector {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .connector-line {
+            width: 100%;
+            height: 2px;
+            background: var(--connector-color);
+            position: relative;
+        }
+
+        .connector-line::after {
+            content: '';
+            position: absolute;
+            right: -1px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 0;
+            height: 0;
+            border-left: 6px solid var(--connector-color);
+            border-top: 4px solid transparent;
+            border-bottom: 4px solid transparent;
+        }
+
+        .connector.active .connector-line {
+            background: var(--diagnosis-color);
+            animation: flowPulse 1.5s infinite;
+        }
+
+        .connector.active .connector-line::after {
+            border-left-color: var(--diagnosis-color);
+        }
+
+        .connector.active-voice .connector-line {
+            background: var(--voice-color);
+            animation: flowPulse 1.5s infinite;
+        }
+
+        .connector.active-voice .connector-line::after {
+            border-left-color: var(--voice-color);
+        }
+
+        .connector.inactive .connector-line {
+            background: #E8E8E8;
+            border-style: dashed;
+        }
+
+        .connector.inactive .connector-line::after {
+            border-left-color: #E8E8E8;
+        }
+
+        @keyframes flowPulse {
+            0% { opacity: 0.5; }
+            50% { opacity: 1; }
+            100% { opacity: 0.5; }
+        }
+
+        /* No-connector placeholder for tools without an agent */
+        .no-connector {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .no-agent {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Agent cards (right column) */
+        .agent-card {
+            border: 1.5px solid #E8E8E8;
+            border-radius: 8px;
+            padding: 14px 16px;
+            background: white;
+            position: relative;
+        }
+
+        .agent-card.active {
+            border-color: var(--agent-active);
+            box-shadow: 0 0 0 1px var(--agent-active), 0 2px 8px rgba(16, 185, 129, 0.1);
+        }
+
+        .agent-card.placeholder {
+            border-style: dashed;
+            opacity: 0.55;
+        }
+
+        .agent-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+
+        .agent-status {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .agent-card.active .agent-status {
+            background: var(--agent-active);
+            box-shadow: 0 0 6px rgba(16, 185, 129, 0.5);
+            animation: agentPulse 2s infinite;
+        }
+
+        .agent-card.placeholder .agent-status {
+            background: var(--agent-placeholder);
+        }
+
+        @keyframes agentPulse {
+            0%, 100% { box-shadow: 0 0 6px rgba(16, 185, 129, 0.5); }
+            50% { box-shadow: 0 0 12px rgba(16, 185, 129, 0.8); }
+        }
+
+        .agent-name {
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: var(--aws-dark);
+        }
+
+        .agent-tag {
+            margin-left: auto;
+            font-size: 0.58rem;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 3px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .agent-card.active .agent-tag {
+            background: rgba(16, 185, 129, 0.1);
+            color: #059669;
+        }
+
+        .agent-card.placeholder .agent-tag {
+            background: rgba(156, 163, 175, 0.15);
+            color: #6B7280;
+        }
+
+        .agent-role {
+            font-size: 0.7rem;
+            color: #546E7A;
+            line-height: 1.4;
+            margin-bottom: 6px;
+        }
+
+        .agent-tools {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+
+        .agent-tools .mini-tool {
+            font-size: 0.58rem;
+            font-weight: 600;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+        }
+
+        .agent-card.diagnosis .mini-tool {
+            background: rgba(1, 168, 141, 0.08);
+            color: #047857;
+        }
+
+        .agent-card.voice .mini-tool {
+            background: rgba(123, 47, 247, 0.08);
+            color: #6D28D9;
+        }
+
+        .agent-sdk {
+            margin-top: 6px;
+            font-size: 0.6rem;
+            font-weight: 600;
+            color: #879596;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+        }
+
+        /* Bottom bar — SoP flow */
+        .flow-bar {
+            border-top: 1px solid #E8E8E8;
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            gap: 0;
+            flex-shrink: 0;
+            background: var(--card-bg);
+        }
+
+        .flow-step {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 14px;
+            border-radius: 4px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: #546E7A;
+            white-space: nowrap;
+        }
+
+        .flow-step .step-num {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--aws-orange);
+            color: var(--aws-dark);
+            font-size: 0.65rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .flow-arrow {
+            color: #D5DBDB;
+            font-size: 1.2rem;
+            margin: 0 4px;
+        }
+
+        .flow-step.active {
+            background: var(--accent-glow);
+            color: #B45309;
+        }
+
+        /* SDK badge */
+        .sdk-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--aws-dark);
+            color: white;
+            font-size: 0.68rem;
+            font-weight: 600;
+            padding: 4px 10px;
+            border-radius: 4px;
+            margin-left: auto;
+            letter-spacing: 0.3px;
+        }
+
+        .sdk-badge .sdk-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--aws-orange);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Top bar -->
+    <div class="top-bar">
+        <span class="aws-logo">AWS</span>
+        <h1><strong>Master Agent</strong> &mdash; Incident Orchestrator</h1>
+        <span class="badge">Orchestrator</span>
+    </div>
+
+    <!-- Main content -->
+    <div class="main">
+        <!-- Left: System Prompt -->
+        <div class="panel-prompt">
+            <div class="panel-title">System Prompt (SoP)</div>
+            <div class="prompt-card">
+                <div class="role">You are the Master Agent for an AI Operations Center.</div>
+                <p>Your role is to orchestrate incident response following the Standard Operating Procedure.</p>
+                <ol>
+                    <li><span class="emphasis">Assess severity</span> (low, medium, high, critical)</li>
+                    <li><span class="emphasis">Activate Database Agent</span> to investigate root cause</li>
+                    <li>Based on severity and environment, decide escalation path</li>
+                    <li><span class="emphasis">Monitor sub-agent progress</span> and update incident status</li>
+                    <li>Once recovery confirmed, <span class="emphasis">mark incident resolved</span></li>
+                </ol>
+                <div class="decision-tree">
+                    <strong>Escalation Decision:</strong><br>
+                    <div class="branch">&#x2022; Non-prod + low/medium &#x2192; WhatsApp alert (Escalation Agent)</div>
+                    <div class="branch">&#x2022; Production OR high/critical &#x2192; <strong>Voice call</strong> (Voice Agent)</div>
+                </div>
+            </div>
+            <div class="prompt-meta">
+                <span><span class="dot"></span> Loaded from DynamoDB at runtime</span>
+                <span>Max tokens: 4096</span>
+                <span>Model: Claude Sonnet (Bedrock)</span>
+            </div>
+        </div>
+
+        <!-- Right: Orchestration map (tools → connectors → agents) -->
+        <div class="panel-orchestration">
+            <div class="panel-title">Orchestration Map — Tools &amp; Sub-Agents</div>
+            <div class="orch-map">
+                <!-- Row 1: assess_severity (no agent) -->
+                <div class="tool-card">
+                    <div class="tool-icon">&#x26A0;&#xFE0F;</div>
+                    <div class="tool-name">assess_severity()</div>
+                    <div class="tool-desc">Evaluates incident criticality. Maps service to severity level (critical for production DB).</div>
+                </div>
+                <div class="no-connector"></div>
+                <div class="no-agent"></div>
+
+                <!-- Row 2: activate_diagnosis → Diagnosis Agent -->
+                <div class="tool-card spawns-diagnosis">
+                    <div class="tool-icon">&#x1F50D;</div>
+                    <div class="tool-name">activate_diagnosis()</div>
+                    <div class="tool-desc">Spawns the Database Agent with a 30s timeout to investigate and produce an RCA.</div>
+                </div>
+                <div class="connector active">
+                    <div class="connector-line"></div>
+                </div>
+                <div class="agent-card active diagnosis">
+                    <div class="agent-header">
+                        <span class="agent-status"></span>
+                        <span class="agent-name">Database Agent</span>
+                        <span class="agent-tag">Active</span>
+                    </div>
+                    <div class="agent-role">Investigates Aurora DB root cause with real AWS API calls</div>
+                    <div class="agent-tools">
+                        <span class="mini-tool">check_network</span>
+                        <span class="mini-tool">pull_logs</span>
+                        <span class="mini-tool">check_health</span>
+                        <span class="mini-tool">check_recent_changes</span>
+                    </div>
+                    <div class="agent-sdk">Strands Agent + Bedrock Claude</div>
+                </div>
+
+                <!-- Row 3: activate_voice_call → Voice Agent -->
+                <div class="tool-card spawns-voice">
+                    <div class="tool-icon">&#x1F4DE;</div>
+                    <div class="tool-name">activate_voice_call()</div>
+                    <div class="tool-desc">Triggers the Voice Agent to dial the on-call DBA with RCA context.</div>
+                </div>
+                <div class="connector active-voice">
+                    <div class="connector-line"></div>
+                </div>
+                <div class="agent-card active voice">
+                    <div class="agent-header">
+                        <span class="agent-status"></span>
+                        <span class="agent-name">Voice Agent</span>
+                        <span class="agent-tag">Active</span>
+                    </div>
+                    <div class="agent-role">Real phone call via Twilio. Authenticates DBA, applies fix.</div>
+                    <div class="agent-tools">
+                        <span class="mini-tool">authenticate_user</span>
+                        <span class="mini-tool">apply_network_fix</span>
+                        <span class="mini-tool">check_service_health</span>
+                    </div>
+                    <div class="agent-sdk">Strands BidiAgent + Nova Sonic</div>
+                </div>
+
+                <!-- Row 4: update_incident_status (no agent) -->
+                <div class="tool-card">
+                    <div class="tool-icon">&#x2705;</div>
+                    <div class="tool-name">update_incident_status()</div>
+                    <div class="tool-desc">Transitions phase: DETECTING &#x2192; DIAGNOSING &#x2192; CALLING &#x2192; RECOVERING &#x2192; RESOLVED (e.g. Jira ticket).</div>
+                </div>
+                <div class="no-connector"></div>
+                <div class="no-agent"></div>
+
+                <!-- Rows 5-6: "Add your own" → placeholder agents -->
+                <div class="add-your-own">
+                    <div class="add-your-own-icon">&#x2795;</div>
+                    <div class="add-your-own-text">Add your own agents</div>
+                    <div class="add-your-own-sub">Just define tools + prompt</div>
+                </div>
+                <div class="connector inactive">
+                    <div class="connector-line"></div>
+                </div>
+                <div class="agent-card placeholder">
+                    <div class="agent-header">
+                        <span class="agent-status"></span>
+                        <span class="agent-name">ECS Cluster Agent</span>
+                        <span class="agent-tag">Planned</span>
+                    </div>
+                    <div class="agent-role">Task health, service events, container logs</div>
+                    <div class="agent-sdk">Strands SDK</div>
+                </div>
+
+                <div class="add-your-own-spacer"></div>
+                <div class="connector inactive">
+                    <div class="connector-line"></div>
+                </div>
+                <div class="agent-card placeholder">
+                    <div class="agent-header">
+                        <span class="agent-status"></span>
+                        <span class="agent-name">S3 Storage Agent</span>
+                        <span class="agent-tag">Planned</span>
+                    </div>
+                    <div class="agent-role">Bucket policies, access logs, replication status</div>
+                    <div class="agent-sdk">Strands SDK</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom: SoP Flow -->
+    <div class="flow-bar">
+        <div class="flow-step active">
+            <span class="step-num">1</span>
+            Detect
+        </div>
+        <span class="flow-arrow">&#x2192;</span>
+        <div class="flow-step">
+            <span class="step-num">2</span>
+            Assess
+        </div>
+        <span class="flow-arrow">&#x2192;</span>
+        <div class="flow-step">
+            <span class="step-num">3</span>
+            Diagnose
+        </div>
+        <span class="flow-arrow">&#x2192;</span>
+        <div class="flow-step">
+            <span class="step-num">4</span>
+            Escalate
+        </div>
+        <span class="flow-arrow">&#x2192;</span>
+        <div class="flow-step">
+            <span class="step-num">5</span>
+            Recover
+        </div>
+        <span class="flow-arrow">&#x2192;</span>
+        <div class="flow-step">
+            <span class="step-num">6</span>
+            Resolve
+        </div>
+
+        <span class="sdk-badge">
+            <span class="sdk-dot"></span>
+            Strands Agents SDK + Amazon Bedrock
+        </span>
+    </div>
+</body>
+</html>

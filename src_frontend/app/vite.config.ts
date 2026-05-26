@@ -1,7 +1,7 @@
 import { defineConfig, Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import { resolve } from "path";
-import { copyFileSync, mkdirSync, readdirSync } from "fs";
+import { copyFileSync, mkdirSync, readdirSync, readFileSync } from "fs";
 
 function copyDiagramsPlugin(): Plugin {
   const srcDir = resolve(__dirname, "../../docs/architecture");
@@ -22,7 +22,6 @@ function copyDiagramsPlugin(): Plugin {
         const filePath = resolve(srcDir, (req.url || "/").replace(/^\//, ""));
         if (filePath.endsWith(".html")) {
           res.setHeader("Content-Type", "text/html");
-          const { readFileSync } = require("fs");
           try {
             res.end(readFileSync(filePath));
           } catch {

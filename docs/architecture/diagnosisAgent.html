@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diagnosis Agent — Tools & Prompt</title>
+    <style>
+        :root {
+            --aws-dark: #232F3E;
+            --aws-orange: #FF9900;
+            --aws-ai: #01A88D;
+            --aws-database: #3B48CC;
+            --aws-network: #8C4FFF;
+            --aws-monitoring: #E7157B;
+            --aws-compute: #ED7100;
+            --accent-glow: rgba(1, 168, 141, 0.15);
+            --card-bg: #FAFBFC;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Amazon Ember', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #FFFFFF;
+            color: var(--aws-dark);
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Top bar */
+        .top-bar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 24px;
+            border-bottom: 1px solid #E8E8E8;
+            flex-shrink: 0;
+        }
+
+        .aws-logo {
+            background: var(--aws-dark);
+            color: white;
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 4px 8px;
+            border-radius: 2px;
+            letter-spacing: 1px;
+        }
+
+        .top-bar h1 {
+            font-size: 1.5rem;
+            font-weight: 400;
+            color: #545B64;
+        }
+
+        .top-bar h1 strong {
+            color: var(--aws-dark);
+            font-weight: 700;
+        }
+
+        .badge {
+            margin-left: auto;
+            background: var(--aws-ai);
+            color: white;
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 12px;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        /* Main layout */
+        .main {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        /* Left panel — Prompt */
+        .panel-prompt {
+            padding: 24px;
+            border-right: 1px solid #E8E8E8;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            overflow: auto;
+        }
+
+        .panel-title {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            color: #879596;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .panel-title::before {
+            content: '';
+            width: 3px;
+            height: 14px;
+            background: var(--aws-ai);
+            border-radius: 2px;
+        }
+
+        .prompt-card {
+            background: var(--card-bg);
+            border: 1px solid #E8E8E8;
+            border-left: 4px solid var(--aws-ai);
+            border-radius: 6px;
+            padding: 20px;
+            font-size: 0.85rem;
+            line-height: 1.7;
+            color: #37474F;
+            flex: 1;
+        }
+
+        .prompt-card .role {
+            font-weight: 700;
+            color: var(--aws-ai);
+            font-size: 0.95rem;
+            margin-bottom: 12px;
+        }
+
+        .prompt-card ol {
+            padding-left: 20px;
+            margin: 12px 0;
+        }
+
+        .prompt-card ol li {
+            margin-bottom: 6px;
+        }
+
+        .prompt-card .emphasis {
+            color: var(--aws-dark);
+            font-weight: 600;
+        }
+
+        .prompt-meta {
+            display: flex;
+            gap: 16px;
+            font-size: 0.72rem;
+            color: #879596;
+        }
+
+        .prompt-meta span {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .prompt-meta .dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--aws-ai);
+        }
+
+        /* Right panel — Tools */
+        .panel-tools {
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            overflow: auto;
+            justify-content: center;
+        }
+
+        .panel-tools .panel-title {
+            font-size: 0.95rem;
+            margin-bottom: 4px;
+        }
+
+        .tools-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+        }
+
+        .tool-card {
+            background: var(--card-bg);
+            border: 1px solid #E8E8E8;
+            border-radius: 8px;
+            padding: 18px;
+            position: relative;
+            overflow: hidden;
+            transition: box-shadow 0.2s, border-color 0.2s;
+        }
+
+        .tool-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+        }
+
+        .tool-card.network::before { background: var(--aws-network); }
+        .tool-card.logs::before { background: var(--aws-monitoring); }
+        .tool-card.health::before { background: var(--aws-database); }
+        .tool-card.changes::before { background: var(--aws-compute); }
+
+        .tool-card:hover {
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            border-color: #D5DBDB;
+        }
+
+        .tool-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            margin-bottom: 10px;
+        }
+
+        .tool-card.network .tool-icon { background: rgba(140, 79, 255, 0.1); color: var(--aws-network); }
+        .tool-card.logs .tool-icon { background: rgba(231, 21, 123, 0.1); color: var(--aws-monitoring); }
+        .tool-card.health .tool-icon { background: rgba(59, 72, 204, 0.1); color: var(--aws-database); }
+        .tool-card.changes .tool-icon { background: rgba(237, 113, 0, 0.1); color: var(--aws-compute); }
+
+        .tool-name {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--aws-dark);
+            margin-bottom: 6px;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+        }
+
+        .tool-desc {
+            font-size: 0.78rem;
+            color: #546E7A;
+            line-height: 1.5;
+        }
+
+        .tool-apis {
+            margin-top: 10px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+
+        .api-tag {
+            font-size: 0.62rem;
+            font-weight: 600;
+            padding: 2px 6px;
+            border-radius: 3px;
+            background: #EDF7ED;
+            color: #2E7D32;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+        }
+
+        .tool-card.network .api-tag { background: rgba(140, 79, 255, 0.08); color: #5E35B1; }
+        .tool-card.logs .api-tag { background: rgba(231, 21, 123, 0.08); color: #AD1457; }
+        .tool-card.health .api-tag { background: rgba(59, 72, 204, 0.08); color: #283593; }
+        .tool-card.changes .api-tag { background: rgba(237, 113, 0, 0.08); color: #E65100; }
+
+        /* Bottom bar — execution flow */
+        .flow-bar {
+            border-top: 1px solid #E8E8E8;
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            gap: 0;
+            flex-shrink: 0;
+            background: var(--card-bg);
+        }
+
+        .flow-step {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 14px;
+            border-radius: 4px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: #546E7A;
+            white-space: nowrap;
+        }
+
+        .flow-step .step-num {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--aws-ai);
+            color: white;
+            font-size: 0.65rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .flow-arrow {
+            color: #D5DBDB;
+            font-size: 1.2rem;
+            margin: 0 4px;
+        }
+
+        .flow-step.active {
+            background: var(--accent-glow);
+            color: var(--aws-ai);
+        }
+
+        /* Strands SDK badge */
+        .sdk-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--aws-dark);
+            color: white;
+            font-size: 0.68rem;
+            font-weight: 600;
+            padding: 4px 10px;
+            border-radius: 4px;
+            margin-left: auto;
+            letter-spacing: 0.3px;
+        }
+
+        .sdk-badge .sdk-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--aws-orange);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        /* RCA output preview */
+        .rca-output {
+            margin-top: 12px;
+            background: #1B2631;
+            border-radius: 6px;
+            padding: 14px 16px;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-size: 0.7rem;
+            line-height: 1.6;
+            color: #B0BEC5;
+        }
+
+        .rca-output .key { color: var(--aws-ai); }
+        .rca-output .val { color: #ECEFF1; }
+        .rca-output .critical { color: #EF5350; font-weight: 700; }
+    </style>
+</head>
+<body>
+    <!-- Top bar -->
+    <div class="top-bar">
+        <span class="aws-logo">AWS</span>
+        <h1><strong>Diagnosis Agent</strong> &mdash; Root Cause Analysis</h1>
+        <span class="badge">Strands Agents SDK</span>
+    </div>
+
+    <!-- Main content -->
+    <div class="main">
+        <!-- Left: System Prompt -->
+        <div class="panel-prompt">
+            <div class="panel-title">System Prompt</div>
+            <div class="prompt-card">
+                <div class="role">You are the Diagnosis Agent.</div>
+                <p>Your role is to investigate infrastructure incidents and produce a Root Cause Analysis summary.</p>
+                <ol>
+                    <li>Check <span class="emphasis">network connectivity</span> and security group configuration FIRST</li>
+                    <li>Pull <span class="emphasis">recent logs</span> from the affected service</li>
+                    <li>Run <span class="emphasis">health checks</span> on dependent systems</li>
+                    <li>Check <span class="emphasis">recent deployments</span> or configuration changes</li>
+                    <li>Correlate metrics with the incident timeline</li>
+                    <li>Produce a concise RCA summary</li>
+                </ol>
+                <p style="margin-top: 12px; font-style: italic; color: #879596;">Be specific and factual. Never speculate &mdash; if you cannot determine root cause, say so.</p>
+            </div>
+            <div class="prompt-meta">
+                <span><span class="dot"></span> Loaded from DynamoDB at runtime</span>
+                <span>Max tokens: 4096</span>
+                <span>Model: Claude Sonnet (Bedrock)</span>
+            </div>
+
+            <!-- RCA Output Preview -->
+            <div class="rca-output">
+                <span class="key">affected_service:</span> <span class="val">aurora-db (rca-rds-aurora-cluster)</span><br>
+                <span class="key">root_cause:</span> <span class="val">Security group rule removed &mdash; port 3306 blocked</span><br>
+                <span class="key">severity:</span> <span class="critical">CRITICAL</span><br>
+                <span class="key">impact:</span> <span class="val">All application connections to DB rejected</span><br>
+                <span class="key">action:</span> <span class="val">Restore inbound rule for SG sg-0e9b35dc</span>
+            </div>
+        </div>
+
+        <!-- Right: Tools -->
+        <div class="panel-tools">
+            <div class="panel-title">Available Tools (4)</div>
+            <div class="tools-grid">
+                <!-- Tool 1: check_network -->
+                <div class="tool-card network">
+                    <div class="tool-icon">&#x1F50C;</div>
+                    <div class="tool-name">check_network()</div>
+                    <div class="tool-desc">Verifies security group rules and port 3306 connectivity between ECS and RDS.</div>
+                    <div class="tool-apis">
+                        <span class="api-tag">EC2:DescribeSecurityGroups</span>
+                    </div>
+                </div>
+
+                <!-- Tool 2: pull_logs -->
+                <div class="tool-card logs">
+                    <div class="tool-icon">&#x1F4C4;</div>
+                    <div class="tool-name">pull_logs()</div>
+                    <div class="tool-desc">Queries CloudWatch Logs Insights for error patterns in the last N minutes.</div>
+                    <div class="tool-apis">
+                        <span class="api-tag">Logs:StartQuery</span>
+                        <span class="api-tag">Logs:GetResults</span>
+                    </div>
+                </div>
+
+                <!-- Tool 3: check_health -->
+                <div class="tool-card health">
+                    <div class="tool-icon">&#x1F3E5;</div>
+                    <div class="tool-name">check_health()</div>
+                    <div class="tool-desc">Pulls RDS cluster status, CPU utilization, free memory, and active connections from CloudWatch.</div>
+                    <div class="tool-apis">
+                        <span class="api-tag">RDS:DescribeClusters</span>
+                        <span class="api-tag">CW:GetMetricData</span>
+                    </div>
+                </div>
+
+                <!-- Tool 4: check_recent_changes -->
+                <div class="tool-card changes">
+                    <div class="tool-icon">&#x1F504;</div>
+                    <div class="tool-name">check_recent_changes()</div>
+                    <div class="tool-desc">Queries RDS Events for deployments, scaling, or config changes in the last 24h.</div>
+                    <div class="tool-apis">
+                        <span class="api-tag">RDS:DescribeEvents</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom: Execution Flow -->
+    <div class="flow-bar">
+        <div class="flow-step active">
+            <span class="step-num">1</span>
+            Network
+        </div>
+        <span class="flow-arrow">&#x2192;</span>
+        <div class="flow-step">
+            <span class="step-num">2</span>
+            Logs
+        </div>
+        <span class="flow-arrow">&#x2192;</span>
+        <div class="flow-step">
+            <span class="step-num">3</span>
+            Health
+        </div>
+        <span class="flow-arrow">&#x2192;</span>
+        <div class="flow-step">
+            <span class="step-num">4</span>
+            Changes
+        </div>
+        <span class="flow-arrow">&#x2192;</span>
+        <div class="flow-step">
+            <span class="step-num">5</span>
+            Correlate
+        </div>
+        <span class="flow-arrow">&#x2192;</span>
+        <div class="flow-step">
+            <span class="step-num">6</span>
+            RCA Summary
+        </div>
+
+        <span class="sdk-badge">
+            <span class="sdk-dot"></span>
+            Strands Agents SDK + Amazon Bedrock
+        </span>
+    </div>
+</body>
+</html>

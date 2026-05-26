@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice Agent — Real-Time Phone Call</title>
+    <style>
+        :root {
+            --aws-dark: #232F3E;
+            --aws-orange: #FF9900;
+            --nova-purple: #7B2FF7;
+            --nova-pink: #D946EF;
+            --nova-blue: #6366F1;
+            --tool-auth: #F59E0B;
+            --tool-fix: #10B981;
+            --tool-health: #6366F1;
+            --accent-glow: rgba(123, 47, 247, 0.12);
+            --card-bg: #FAFBFC;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Amazon Ember', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #FFFFFF;
+            color: var(--aws-dark);
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Top bar */
+        .top-bar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 24px;
+            border-bottom: 1px solid #E8E8E8;
+            flex-shrink: 0;
+        }
+
+        .aws-logo {
+            background: var(--aws-dark);
+            color: white;
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 4px 8px;
+            border-radius: 2px;
+            letter-spacing: 1px;
+        }
+
+        .top-bar h1 {
+            font-size: 1.5rem;
+            font-weight: 400;
+            color: #545B64;
+        }
+
+        .top-bar h1 strong {
+            color: var(--aws-dark);
+            font-weight: 700;
+        }
+
+        .badge {
+            margin-left: auto;
+            background: linear-gradient(135deg, var(--nova-purple), var(--nova-pink));
+            color: white;
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 4px 12px;
+            border-radius: 12px;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        /* Main layout */
+        .main {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        /* Left panel — Prompt */
+        .panel-prompt {
+            padding: 24px;
+            border-right: 1px solid #E8E8E8;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            overflow: auto;
+        }
+
+        .panel-title {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            color: #879596;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .panel-title::before {
+            content: '';
+            width: 3px;
+            height: 14px;
+            background: var(--nova-purple);
+            border-radius: 2px;
+        }
+
+        .prompt-card {
+            background: var(--card-bg);
+            border: 1px solid #E8E8E8;
+            border-left: 4px solid var(--nova-purple);
+            border-radius: 6px;
+            padding: 20px;
+            font-size: 0.85rem;
+            line-height: 1.7;
+            color: #37474F;
+            flex: 1;
+        }
+
+        .prompt-card .role {
+            font-weight: 700;
+            color: var(--nova-purple);
+            font-size: 0.95rem;
+            margin-bottom: 12px;
+        }
+
+        .prompt-card ol {
+            padding-left: 20px;
+            margin: 12px 0;
+        }
+
+        .prompt-card ol li {
+            margin-bottom: 6px;
+        }
+
+        .prompt-card .emphasis {
+            color: var(--aws-dark);
+            font-weight: 600;
+        }
+
+        .prompt-card .warning {
+            margin-top: 14px;
+            padding: 10px 12px;
+            background: rgba(239, 68, 68, 0.06);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            border-radius: 4px;
+            font-size: 0.78rem;
+            color: #B91C1C;
+            font-weight: 500;
+        }
+
+        .prompt-meta {
+            display: flex;
+            gap: 16px;
+            font-size: 0.72rem;
+            color: #879596;
+        }
+
+        .prompt-meta span {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .prompt-meta .dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--nova-purple);
+        }
+
+        /* Right panel — Tools */
+        .panel-tools {
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            overflow: auto;
+            justify-content: center;
+        }
+
+        .panel-tools .panel-title {
+            font-size: 0.95rem;
+            margin-bottom: 4px;
+        }
+
+        .tools-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+        }
+
+        .tool-card {
+            background: var(--card-bg);
+            border: 1px solid #E8E8E8;
+            border-radius: 8px;
+            padding: 18px 20px;
+            position: relative;
+            overflow: hidden;
+            display: grid;
+            grid-template-columns: 44px 1fr;
+            gap: 14px;
+            align-items: start;
+        }
+
+        .tool-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            width: 3px;
+        }
+
+        .tool-card.auth::before { background: var(--tool-auth); }
+        .tool-card.fix::before { background: var(--tool-fix); }
+        .tool-card.health::before { background: var(--tool-health); }
+
+        .tool-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+        }
+
+        .tool-card.auth .tool-icon { background: rgba(245, 158, 11, 0.1); }
+        .tool-card.fix .tool-icon { background: rgba(16, 185, 129, 0.1); }
+        .tool-card.health .tool-icon { background: rgba(99, 102, 241, 0.1); }
+
+        .tool-body {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .tool-name {
+            font-size: 0.88rem;
+            font-weight: 700;
+            color: var(--aws-dark);
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+        }
+
+        .tool-desc {
+            font-size: 0.78rem;
+            color: #546E7A;
+            line-height: 1.5;
+        }
+
+        .tool-detail {
+            margin-top: 4px;
+            font-size: 0.7rem;
+            color: #78909C;
+            font-style: italic;
+        }
+
+        /* Waveform decoration */
+        .waveform {
+            margin-top: 16px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 3px;
+        }
+
+        .waveform .bar {
+            width: 3px;
+            border-radius: 2px;
+            background: linear-gradient(180deg, var(--nova-purple), var(--nova-pink));
+            animation: wave 1.2s ease-in-out infinite;
+        }
+
+        .waveform .bar:nth-child(1) { height: 12px; animation-delay: 0s; }
+        .waveform .bar:nth-child(2) { height: 20px; animation-delay: 0.1s; }
+        .waveform .bar:nth-child(3) { height: 32px; animation-delay: 0.2s; }
+        .waveform .bar:nth-child(4) { height: 24px; animation-delay: 0.3s; }
+        .waveform .bar:nth-child(5) { height: 36px; animation-delay: 0.15s; }
+        .waveform .bar:nth-child(6) { height: 28px; animation-delay: 0.25s; }
+        .waveform .bar:nth-child(7) { height: 16px; animation-delay: 0.35s; }
+        .waveform .bar:nth-child(8) { height: 32px; animation-delay: 0.05s; }
+        .waveform .bar:nth-child(9) { height: 20px; animation-delay: 0.2s; }
+        .waveform .bar:nth-child(10) { height: 12px; animation-delay: 0.3s; }
+        .waveform .bar:nth-child(11) { height: 24px; animation-delay: 0.1s; }
+        .waveform .bar:nth-child(12) { height: 36px; animation-delay: 0.25s; }
+        .waveform .bar:nth-child(13) { height: 18px; animation-delay: 0.15s; }
+        .waveform .bar:nth-child(14) { height: 28px; animation-delay: 0.05s; }
+        .waveform .bar:nth-child(15) { height: 14px; animation-delay: 0.35s; }
+
+        @keyframes wave {
+            0%, 100% { transform: scaleY(1); opacity: 0.7; }
+            50% { transform: scaleY(0.4); opacity: 1; }
+        }
+
+        /* Bottom bar — call flow */
+        .flow-bar {
+            border-top: 1px solid #E8E8E8;
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            gap: 0;
+            flex-shrink: 0;
+            background: var(--card-bg);
+        }
+
+        .flow-step {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 14px;
+            border-radius: 4px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: #546E7A;
+            white-space: nowrap;
+        }
+
+        .flow-step .step-num {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--nova-purple);
+            color: white;
+            font-size: 0.65rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .flow-arrow {
+            color: #D5DBDB;
+            font-size: 1.2rem;
+            margin: 0 4px;
+        }
+
+        .flow-step.active {
+            background: var(--accent-glow);
+            color: var(--nova-purple);
+        }
+
+        /* SDK badge */
+        .sdk-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--aws-dark);
+            color: white;
+            font-size: 0.68rem;
+            font-weight: 600;
+            padding: 4px 10px;
+            border-radius: 4px;
+            margin-left: auto;
+            letter-spacing: 0.3px;
+        }
+
+        .sdk-badge .sdk-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--nova-pink);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        /* Twilio badge */
+        .twilio-badge {
+            margin-top: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            background: #F0F4FF;
+            border: 1px solid #D1DBE8;
+            border-radius: 6px;
+        }
+
+        .twilio-icon {
+            font-size: 1.2rem;
+        }
+
+        .twilio-text {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .twilio-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: #E1243D;
+            letter-spacing: 0.3px;
+        }
+
+        .twilio-desc {
+            font-size: 0.65rem;
+            color: #546E7A;
+        }
+
+        /* Call transcript preview */
+        .transcript {
+            margin-top: 12px;
+            background: #1B2631;
+            border-radius: 6px;
+            padding: 14px 16px;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-size: 0.7rem;
+            line-height: 1.8;
+            color: #B0BEC5;
+        }
+
+        .transcript .agent { color: var(--nova-pink); font-weight: 600; }
+        .transcript .dba { color: var(--tool-auth); font-weight: 600; }
+        .transcript .system { color: #4ADE80; font-style: italic; }
+    </style>
+</head>
+<body>
+    <!-- Top bar -->
+    <div class="top-bar">
+        <span class="aws-logo">AWS</span>
+        <h1><strong>Voice Agent</strong> &mdash; Real-Time Phone Call</h1>
+        <span class="badge">Bedrock + Strands + Claude + Nova Sonic</span>
+    </div>
+
+    <!-- Main content -->
+    <div class="main">
+        <!-- Left: System Prompt -->
+        <div class="panel-prompt">
+            <div class="panel-title">System Prompt</div>
+            <div class="prompt-card">
+                <div class="role">You are the Voice Agent for the AI Operations Center.</div>
+                <p>You place emergency phone calls to on-call engineers during critical incidents.</p>
+                <ol>
+                    <li><span class="emphasis">Greet</span> the engineer, identify yourself as the AI Operations Center</li>
+                    <li><span class="emphasis">State the incident:</span> security group rule blocking port 3306, database unreachable</li>
+                    <li>Ask for <span class="emphasis">voice passphrase</span> to authenticate identity</li>
+                    <li>Once authenticated, explain the fix needed</li>
+                    <li>Ask for <span class="emphasis">authorization</span> before applying</li>
+                    <li>Apply the network fix and confirm recovery</li>
+                </ol>
+                <div class="warning">
+                    NEVER execute recovery without voice authentication. If auth fails 3x, escalate to manual intervention.
+                </div>
+            </div>
+            <div class="prompt-meta">
+                <span><span class="dot"></span> Speech-to-Speech (no text intermediate)</span>
+                <span>Twilio Media Streams</span>
+                <span>16kHz PCM audio</span>
+            </div>
+
+            <!-- Call transcript preview -->
+            <div class="transcript">
+                <span class="agent">AGENT:</span> This is the AI Operations Center. Critical Aurora incident.<br>
+                <span class="agent">AGENT:</span> I need your voice passphrase to authenticate.<br>
+                <span class="dba">DBA:</span> The early bird catches the worm.<br>
+                <span class="system">[authenticate_user] &#x2713; verified</span><br>
+                <span class="agent">AGENT:</span> Confirmed. Port 3306 blocked. Permission to apply fix?<br>
+                <span class="dba">DBA:</span> Yes, go ahead.<br>
+                <span class="system">[apply_network_fix] &#x2713; rule restored</span><br>
+                <span class="agent">AGENT:</span> Fix applied. Connections recovering.
+            </div>
+        </div>
+
+        <!-- Right: Tools -->
+        <div class="panel-tools">
+            <div class="panel-title">Available Tools (3)</div>
+            <div class="tools-grid">
+                <!-- Tool 1: authenticate_user -->
+                <div class="tool-card auth">
+                    <div class="tool-icon">&#x1F511;</div>
+                    <div class="tool-body">
+                        <div class="tool-name">authenticate_user()</div>
+                        <div class="tool-desc">Verifies the on-call DBA by matching their spoken passphrase against the stored secret.</div>
+                        <div class="tool-detail">Input: spoken_passphrase (transcribed by Nova Sonic)</div>
+                    </div>
+                </div>
+
+                <!-- Tool 2: apply_network_fix -->
+                <div class="tool-card fix">
+                    <div class="tool-icon">&#x1F527;</div>
+                    <div class="tool-body">
+                        <div class="tool-name">apply_fix()</div>
+                        <div class="tool-desc">Executes the recommended remediation action from the RCA (e.g. security group change, config rollback, service restart).</div>
+                        <div class="tool-detail">Requires DBA authorization. Action determined dynamically by diagnosis.</div>
+                    </div>
+                </div>
+
+                <!-- Tool 3: check_service_health -->
+                <div class="tool-card health">
+                    <div class="tool-icon">&#x1F4CA;</div>
+                    <div class="tool-body">
+                        <div class="tool-name">check_service_health()</div>
+                        <div class="tool-desc">Returns current incident status, affected service, and live metrics for the DBA's situational awareness.</div>
+                        <div class="tool-detail">Reads from incident state — no AWS API call needed</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Waveform animation -->
+            <div class="waveform">
+                <div class="bar"></div>
+                <div class="bar"></div>
+                <div class="bar"></div>
+                <div class="bar"></div>
+                <div class="bar"></div>
+                <div class="bar"></div>
+                <div class="bar"></div>
+                <div class="bar"></div>
+                <div class="bar"></div>
+                <div class="bar"></div>
+                <div class="bar"></div>
+                <div class="bar"></div>
+                <div class="bar"></div>
+                <div class="bar"></div>
+                <div class="bar"></div>
+            </div>
+
+            <!-- Twilio integration -->
+            <div class="twilio-badge">
+                <span class="twilio-icon">&#x1F4F1;</span>
+                <div class="twilio-text">
+                    <span class="twilio-label">Powered by Twilio Media Streams</span>
+                    <span class="twilio-desc">Real outbound call to DBA's phone via PSTN</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom: Call Flow -->
+    <div class="flow-bar">
+        <div class="flow-step active">
+            <span class="step-num">1</span>
+            Greet
+        </div>
+        <span class="flow-arrow">&#x2192;</span>
+        <div class="flow-step">
+            <span class="step-num">2</span>
+            Authenticate
+        </div>
+        <span class="flow-arrow">&#x2192;</span>
+        <div class="flow-step">
+            <span class="step-num">3</span>
+            Status
+        </div>
+        <span class="flow-arrow">&#x2192;</span>
+        <div class="flow-step">
+            <span class="step-num">4</span>
+            Authorize
+        </div>
+        <span class="flow-arrow">&#x2192;</span>
+        <div class="flow-step">
+            <span class="step-num">5</span>
+            Fix
+        </div>
+        <span class="flow-arrow">&#x2192;</span>
+        <div class="flow-step">
+            <span class="step-num">6</span>
+            Confirm
+        </div>
+
+        <span class="sdk-badge">
+            <span class="sdk-dot"></span>
+            Strands Agents + Amazon Nova Sonic
+        </span>
+    </div>
+</body>
+</html>
