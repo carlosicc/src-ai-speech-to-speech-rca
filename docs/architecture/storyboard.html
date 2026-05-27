@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alert to Action - Storyboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Press Start 2P', 'Amazon Ember', -apple-system, monospace;
+            background: #0a0e1a;
+            color: #e0e0e0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 12px;
+        }
+
+        .title {
+            font-size: 1.4rem;
+            color: #26c6da;
+            text-align: center;
+            margin-bottom: 16px;
+            text-shadow: 0 0 10px rgba(38, 198, 218, 0.5);
+            letter-spacing: 2px;
+        }
+
+        .subtitle {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-size: 0.85rem;
+            color: #9e9e9e;
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 6px;
+            width: 100%;
+            max-width: 1600px;
+            aspect-ratio: 16 / 9;
+        }
+
+        .panel {
+            position: relative;
+            border: 2px solid #1a2744;
+            outline: 1px solid #26c6da;
+            outline-offset: -4px;
+            border-radius: 4px;
+            overflow: hidden;
+            background: #0d1225;
+        }
+
+        .panel img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+        }
+
+        .panel-number {
+            position: absolute;
+            top: 6px;
+            left: 6px;
+            background: rgba(10, 14, 26, 0.85);
+            border: 1px solid #26c6da;
+            color: #26c6da;
+            font-size: 0.55rem;
+            padding: 2px 6px;
+            border-radius: 2px;
+        }
+
+        .panel-title {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(transparent, rgba(10, 14, 26, 0.9));
+            padding: 20px 8px 6px;
+            font-size: 0.6rem;
+            color: #e0e0e0;
+            text-align: center;
+            letter-spacing: 1px;
+        }
+
+        .footer {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-size: 0.7rem;
+            color: #4a5a7a;
+            text-align: center;
+            margin-top: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="title">ALERT TO ACTION</div>
+    <div class="subtitle">AI Operations Center &mdash; Incident Response Story</div>
+
+    <div class="grid">
+        <div class="panel">
+            <span class="panel-number">1</span>
+            <img src="/Gemini_Generated_Image_1.png" alt="Panel 1: The Outage">
+            <div class="panel-title">THE OUTAGE</div>
+        </div>
+        <div class="panel">
+            <span class="panel-number">2</span>
+            <img src="/Gemini_Generated_Image_2b.png" alt="Panel 2: The Detection">
+            <div class="panel-title">THE DETECTION</div>
+        </div>
+        <div class="panel">
+            <span class="panel-number">3</span>
+            <img src="/Gemini_Generated_Image_3.png" alt="Panel 3: The Diagnosis">
+            <div class="panel-title">THE DIAGNOSIS</div>
+        </div>
+        <div class="panel">
+            <span class="panel-number">4</span>
+            <img src="/Gemini_Generated_Image_4.png" alt="Panel 4: The Escalation">
+            <div class="panel-title">THE ESCALATION</div>
+        </div>
+        <div class="panel">
+            <span class="panel-number">5</span>
+            <img src="/Gemini_Generated_Image_5.png" alt="Panel 5: The Call">
+            <div class="panel-title">THE CALL</div>
+        </div>
+        <div class="panel">
+            <span class="panel-number">6</span>
+            <img src="/Gemini_Generated_Image_6.png" alt="Panel 6: The Resolution">
+            <div class="panel-title">THE RESOLUTION</div>
+        </div>
+    </div>
+
+    <div class="footer">AWS Summit Milan 2026 &mdash; AI Village</div>
+</body>
+</html>

@@ -122,6 +122,7 @@ class FrontendStack(Stack):
             destination_bucket=site_bucket,
             distribution=distribution,
             distribution_paths=["/*"],
+            memory_limit=512,
         )
 
         # Outputs

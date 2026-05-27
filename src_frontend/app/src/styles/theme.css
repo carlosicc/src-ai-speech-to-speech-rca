@@ -384,7 +384,7 @@ html, body, #root {
 
 /* Agent Log */
 .agent-log {
-  max-height: 160px;
+  max-height: 240px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -538,10 +538,44 @@ html, body, #root {
   text-shadow: 0 1px 0 #1a2a10;
 }
 
+/* Story button — positioned below AWS logo, left side */
+.diagram-story-btn {
+  position: absolute;
+  top: 200px;
+  left: 80px;
+  z-index: 100;
+  pointer-events: auto;
+  background: #1a2a3a !important;
+  border-color: #26c6da !important;
+  box-shadow:
+    inset -2px -2px 0 #0a1420,
+    inset 2px 2px 0 #4dd0e1,
+    0 4px 0 #0a1420,
+    0 6px 8px rgba(0, 0, 0, 0.4) !important;
+}
+
+.diagram-story-btn:hover {
+  background: #2a3a4a !important;
+  border-color: #4dd0e1 !important;
+  box-shadow:
+    inset -2px -2px 0 #0a1420,
+    inset 2px 2px 0 #80deea,
+    0 6px 0 #0a1420,
+    0 8px 12px rgba(0, 0, 0, 0.5) !important;
+}
+
+.diagram-story-btn .diagram-pixel-icon {
+  color: #80deea;
+}
+
+.diagram-story-btn .diagram-pixel-label {
+  color: #26c6da;
+}
+
 /* Master Agent button — positioned above building, right side */
 .diagram-master-btn {
   position: absolute;
-  top: 130px;
+  top: 200px;
   right: 80px;
   z-index: 100;
   pointer-events: auto;

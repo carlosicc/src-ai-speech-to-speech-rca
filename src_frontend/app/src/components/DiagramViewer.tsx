@@ -1,8 +1,13 @@
 import { useEffect, useState } from "react";
 
-type DiagramType = "architecture" | "sequence" | "database" | "voice" | "master" | "code";
+type DiagramType = "story" | "architecture" | "sequence" | "database" | "voice" | "master" | "code";
 
 const DIAGRAMS: Record<DiagramType, { label: string; file: string; icon: string }> = {
+  story: {
+    label: "Story",
+    file: "/diagrams/storyboard.html",
+    icon: "\uD83D\uDCD6",
+  },
   architecture: {
     label: "Arch",
     file: "/diagrams/architectureHorizontal.html",
@@ -13,6 +18,11 @@ const DIAGRAMS: Record<DiagramType, { label: string; file: string; icon: string 
     file: "/diagrams/sequenceDiagram.html",
     icon: "\uD83D\uDCDC",
   },
+  master: {
+    label: "Master",
+    file: "/diagrams/masterAgent.html",
+    icon: "\uD83E\uDDE0",
+  },
   database: {
     label: "DB Agent",
     file: "/diagrams/diagnosisAgent.html",
@@ -22,11 +32,6 @@ const DIAGRAMS: Record<DiagramType, { label: string; file: string; icon: string 
     label: "Voice",
     file: "/diagrams/voiceAgent.html",
     icon: "\uD83D\uDCDE",
-  },
-  master: {
-    label: "Master",
-    file: "/diagrams/masterAgent.html",
-    icon: "\uD83E\uDDE0",
   },
   code: {
     label: "Code",
@@ -58,7 +63,17 @@ export function DiagramViewer() {
 
   return (
     <>
-      {/* Master Agent button — above the building, right side */}
+      {/* Story button — top-left, below AWS logo */}
+      <button
+        className="diagram-pixel-btn diagram-story-btn"
+        onClick={() => setActive("story")}
+        title="View Story"
+      >
+        <span className="diagram-pixel-icon">{DIAGRAMS.story.icon}</span>
+        <span className="diagram-pixel-label">{DIAGRAMS.story.label}</span>
+      </button>
+
+      {/* Master Agent button — top-right, aligned with Story */}
       <button
         className="diagram-pixel-btn diagram-master-btn"
         onClick={() => setActive("master")}
