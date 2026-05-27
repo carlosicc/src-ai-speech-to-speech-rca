@@ -136,7 +136,7 @@ async def _apply_network_fix(service: str) -> dict[str, Any]:
         logger.info(f"Network fix applied for {service}, advancing to RECOVERING")
         return {
             "status": "success",
-            "message": f"Network fix applied for {service}. Firewall rule re-added — connections recovering.",
+            "message": f"Network fix applied for {service}. Firewall rule re-added — connections recovering. Now verify recovery by calling check_service_health.",
         }
     else:
         return {
