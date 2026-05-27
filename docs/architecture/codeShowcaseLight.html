@@ -621,21 +621,26 @@
             <div class="code-separator"></div>
 
             <div class="code-block">
-                <div class="file-label">agents/master_agent.py — tool that triggers the voice call</div>
+                <div class="file-label">agents/master_agent.py — tool that spawns the voice agent</div>
                 <div class="code-body">
                     <div class="code-line"><span class="line-num">42</span><span class="line-content"><span class="dc">@tool</span></span></div>
                     <div class="code-line"><span class="line-num">43</span><span class="line-content"><span class="kw">def</span> <span class="fn">activate_voice_call</span><span class="op">(</span><span class="pa">incident_id</span><span class="op">:</span> <span class="bi">str</span><span class="op">,</span> <span class="pa">severity</span><span class="op">:</span> <span class="bi">str</span><span class="op">,</span> <span class="pa">rca_summary</span><span class="op">:</span> <span class="bi">str</span><span class="op">)</span> <span class="op">-></span> <span class="bi">str</span><span class="op">:</span></span></div>
-                    <div class="code-line"><span class="line-num">44</span><span class="line-content">    <span class="st">"""Call on-call DBA via phone for authorization and recovery."""</span></span></div>
+                    <div class="code-line"><span class="line-num">44</span><span class="line-content">    <span class="st">"""Activate the Voice Agent to call on-call DBA for authorization."""</span></span></div>
                     <div class="code-line"><span class="line-num">45</span><span class="line-content"></span></div>
-                    <div class="code-line highlight"><span class="line-num">46</span><span class="line-content">    <span class="fn">start_voice_session</span><span class="op">(</span></span></div>
-                    <div class="code-line highlight"><span class="line-num">47</span><span class="line-content">        <span class="pa">phone</span><span class="op">=</span><span class="tx">ON_CALL_DBA_NUMBER</span><span class="op">,</span></span></div>
-                    <div class="code-line highlight"><span class="line-num">48</span><span class="line-content">        <span class="pa">context</span><span class="op">={</span><span class="st">"incident_id"</span><span class="op">:</span> <span class="tx">incident_id</span><span class="op">,</span> <span class="st">"rca"</span><span class="op">:</span> <span class="tx">rca_summary</span><span class="op">},</span></span></div>
-                    <div class="code-line highlight"><span class="line-num">49</span><span class="line-content">    <span class="op">)</span></span></div>
-                    <div class="code-line"><span class="line-num">50</span><span class="line-content">    <span class="kw">return</span> <span class="st">"Voice call initiated to on-call DBA"</span></span></div>
+                    <div class="code-line highlight"><span class="line-num">46</span><span class="line-content">    <span class="cm"># Create a voice sub-agent with its own tools</span></span></div>
+                    <div class="code-line highlight"><span class="line-num">47</span><span class="line-content">    <span class="tx">voice_agent</span> <span class="op">=</span> <span class="fn">Agent</span><span class="op">(</span></span></div>
+                    <div class="code-line highlight"><span class="line-num">48</span><span class="line-content">        <span class="pa">model</span><span class="op">=</span><span class="tx">model</span><span class="op">,</span></span></div>
+                    <div class="code-line highlight"><span class="line-num">49</span><span class="line-content">        <span class="pa">system_prompt</span><span class="op">=</span><span class="fn">get_prompt_from_dynamo</span><span class="op">(</span><span class="st">"voice"</span><span class="op">),</span></span></div>
+                    <div class="code-line highlight"><span class="line-num">50</span><span class="line-content">        <span class="pa">tools</span><span class="op">=[</span><span class="tx">place_call</span><span class="op">,</span> <span class="tx">authenticate_user</span><span class="op">,</span> <span class="tx">apply_network_fix</span><span class="op">],</span></span></div>
+                    <div class="code-line highlight"><span class="line-num">51</span><span class="line-content">    <span class="op">)</span></span></div>
+                    <div class="code-line"><span class="line-num">52</span><span class="line-content"></span></div>
+                    <div class="code-line"><span class="line-num">53</span><span class="line-content">    <span class="cm"># Run the voice agent with incident context</span></span></div>
+                    <div class="code-line highlight"><span class="line-num">54</span><span class="line-content">    <span class="tx">result</span> <span class="op">=</span> <span class="tx">voice_agent</span><span class="op">(</span><span class="pa">prompt</span><span class="op">=</span><span class="st">f"Call DBA for incident </span><span class="op">{</span><span class="tx">incident_id</span><span class="op">}</span><span class="st">, RCA: </span><span class="op">{</span><span class="tx">rca_summary</span><span class="op">}</span><span class="st">"</span><span class="op">)</span></span></div>
+                    <div class="code-line"><span class="line-num">55</span><span class="line-content">    <span class="kw">return</span> <span class="bi">str</span><span class="op">(</span><span class="tx">result</span><span class="op">)</span></span></div>
                 </div>
             </div>
             <div class="annotation">
-                <strong>Escalation via real phone call.</strong> The master calls this after diagnosis — passing the RCA so the voice agent can brief the DBA. This bridges into Step 4 (Nova Sonic).
+                <strong>Agent-as-Tool pattern again:</strong> The voice agent is its own Agent with tools (place_call, authenticate_user, apply_network_fix). The master just passes the RCA context — the voice agent handles the call autonomously.
             </div>
 
             <div class="code-separator"></div>
