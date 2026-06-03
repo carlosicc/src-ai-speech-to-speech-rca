@@ -34,9 +34,8 @@ Thumbs.db
 *.tmp
 *.log
 .claude/
-.demo_pids/
+.demo-pids/
 
 # Workspaces (reference material, not part of the project)
 src_workspaces/
 scripts/
-
