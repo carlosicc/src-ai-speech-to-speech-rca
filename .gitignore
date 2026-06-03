@@ -5,6 +5,7 @@ __pycache__/
 *.egg-info/
 dist/
 build/
+.pytest_cache/
 
 # CDK
 cdk.out/
@@ -32,6 +33,10 @@ Thumbs.db
 # Temporary
 *.tmp
 *.log
+.claude/
+.demo_pids/
 
 # Workspaces (reference material, not part of the project)
 src_workspaces/
+scripts/
+
