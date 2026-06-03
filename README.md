@@ -1,34 +1,37 @@
 # From Alert to Action: The AI That Calls You Back
 
-> **AWS Summit Milan 2026 — AI Village Demo**
-> An autonomous, multi-agent AI system that detects, diagnoses, and escalates infrastructure incidents in real time.
+> **AWS Summit Milan 2026 — AI Village**
+> A multi-agent system that detects infrastructure incidents, performs root-cause analysis, and escalates via real-time voice calls — all autonomously.
 
 ---
 
-## Overview
+## What This Does
 
-Every minute a production system is down, the clock is ticking — on revenue, on customer trust, on your team's sanity. This demo showcases a **fully autonomous AI Operations Center** that compresses the gap between incident detection and resolution from minutes to seconds.
+This system implements an autonomous incident-response pipeline. A master orchestrator agent monitors a simulated production environment and, when an incident occurs, delegates diagnosis to specialized sub-agents. Based on severity, it escalates — up to and including placing a real phone call to an on-call engineer using **Amazon Nova Sonic** for bidirectional speech.
 
-When a database goes silent, a master agent activates specialized sub-agents that pull logs, run health checks, and assess criticality. For non-production systems, the AI sends a WhatsApp alert with a pre-assessed RCA summary. For production systems? **The AI calls you.**
+The key capabilities:
 
-Powered by **Amazon Nova Sonic**, the system places an emergency voice call, walks the on-call engineer through the incident, and — if they authenticate by voice — executes safe recovery commands on the spot.
+- **Live incident detection** in a simulated multi-service environment (database health, metrics, logs)
+- **Master orchestrator agent** that follows a Standard Operating Procedure (SoP) to triage and delegate
+- **Sub-agent architecture** — currently one database diagnosis agent is implemented, but additional sub-agents (network, application, storage) can be added following the same pattern: define tools, register the agent, wire it into the orchestrator's SoP
+- **Real phone calls via Twilio** — the system places an actual outbound call to a real phone number, not a simulation
+- **Amazon Nova Sonic speech-to-speech** — the voice agent carries a full bidirectional conversation: explains the incident, authenticates the engineer by voice passphrase, and executes recovery actions based on verbal confirmation
+- **WhatsApp alerting** for lower-severity incidents (non-production environments)
 
 ---
 
-## Demo Narrative
+## How It Works
 
-The demo runs as a live loop (~2–3 minutes), designed for booth traffic at the AWS AI Village:
+| Step | What Happens |
+|------|-------------|
+| **1. Detection** | Monitoring simulator generates metrics; an anomaly triggers an incident |
+| **2. Orchestration** | Master agent activates, evaluates severity, and dispatches sub-agents |
+| **3. Diagnosis** | Database sub-agent pulls logs, runs health checks, and produces an RCA summary |
+| **4. Escalation** | For production-critical incidents, the system initiates a real phone call via Twilio |
+| **5. Voice Interaction** | Nova Sonic powers a live AI conversation — the engineer hears the diagnosis, authenticates, and authorizes recovery |
+| **6. Recovery** | The agent executes safe remediation commands (e.g., restart the failed service) |
 
-| Phase | What Happens |
-|-------|-------------|
-| **Steady State** | Dashboard shows a glowing animated city — all systems healthy |
-| **Incident** | A production database goes down — building goes dark, characters panic |
-| **AI Triage** | Master agent activates, sub-agents diagnose the issue in real-time |
-| **Voice Call** | AI calls the on-call DBA via real phone call (Nova Sonic STS) |
-| **Authentication** | DBA provides voice passphrase to authorize recovery actions |
-| **Resolution** | Agent restarts the database, city recovers, characters celebrate |
-
-Booth visitors can **volunteer to receive the call themselves**, proving the system is live and not pre-recorded.
+The full cycle completes in ~41 seconds with the LLM-driven orchestrator.
 
 ---
 
@@ -36,8 +39,8 @@ Booth visitors can **volunteer to receive the call themselves**, proving the sys
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
-│                        FRONTEND (The City UI)                         │
-│   Animated isometric city + systems panel + live call transcript      │
+│                        FRONTEND (The City UI)                        │
+│   Animated isometric city + systems panel + live call transcript     │
 │   Connects via WebSocket for real-time state updates                 │
 └──────────────────────────────┬───────────────────────────────────────┘
                                │ WebSocket
@@ -59,15 +62,15 @@ Booth visitors can **volunteer to receive the call themselves**, proving the sys
 │  │    checks    │  │               │  │  - Authenticates user    │   │
 │  │  - RCA       │  │               │  │  - Executes recovery     │   │
 │  └──────────────┘  └───────────────┘  └──────────────────────────┘   │
-│                                                                       │
+│                                                                      │
 │  ┌─────────────────────────────────────────────────────────────────┐ │
-│  │  Monitoring Simulator                                            │ │
-│  │  Generates synthetic metrics & triggers incidents on demand      │ │
+│  │  Monitoring Simulator                                           │ │
+│  │  Generates synthetic metrics & triggers incidents on demand     │ │
 │  └─────────────────────────────────────────────────────────────────┘ │
-│                                                                       │
+│                                                                      │
 │  ┌─────────────────────────────────────────────────────────────────┐ │
-│  │  WebSocket Server                                                │ │
-│  │  Pushes real-time state changes & transcript to frontend         │ │
+│  │  WebSocket Server                                               │ │
+│  │  Pushes real-time state changes & transcript to frontend        │ │
 │  └─────────────────────────────────────────────────────────────────┘ │
 └──────────────────────────────────────────────────────────────────────┘
 ```
