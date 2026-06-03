@@ -198,7 +198,7 @@ class TestAgentCoreAgent:
     def test_tools_authenticate_success(self):
         sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src_backend" / "voice" / "agentcore_agent"))
         from tools import authenticate_user
-        result = authenticate_user(spoken_passphrase="REDACTED_PASSPHRASE")
+        result = authenticate_user(spoken_passphrase="test passphrase")
         assert result["authenticated"] is True
 
     def test_tools_authenticate_failure(self):

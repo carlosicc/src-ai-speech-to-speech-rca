@@ -41,15 +41,15 @@ class TestVoiceTools:
             assert "properties" in schema
 
     def test_authenticate_user_correct_passphrase(self):
-        result = _authenticate_user("REDACTED_PASSPHRASE")
+        result = _authenticate_user("test passphrase")
         assert result["status"] == "authenticated"
 
     def test_authenticate_user_case_insensitive(self):
-        result = _authenticate_user("Aurora Sunrise")
+        result = _authenticate_user("Test Passphrase")
         assert result["status"] == "authenticated"
 
     def test_authenticate_user_with_surrounding_text(self):
-        result = _authenticate_user("my passphrase is REDACTED_PASSPHRASE okay")
+        result = _authenticate_user("my passphrase is test passphrase okay")
         assert result["status"] == "authenticated"
 
     def test_authenticate_user_wrong_passphrase(self):
@@ -108,7 +108,7 @@ class TestVoiceTools:
 
     @pytest.mark.asyncio
     async def test_execute_tool_authenticate(self):
-        result = await execute_tool("authenticate_user", {"passphrase": "REDACTED_PASSPHRASE"})
+        result = await execute_tool("authenticate_user", {"passphrase": "test passphrase"})
         assert result["status"] == "authenticated"
 
     @pytest.mark.asyncio

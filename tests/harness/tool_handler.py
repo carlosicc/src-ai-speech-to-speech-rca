@@ -4,7 +4,7 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-VOICE_PASSPHRASE = "REDACTED_PASSPHRASE"
+VOICE_PASSPHRASE = "test passphrase"
 
 
 def _authenticate_user(passphrase: str) -> dict[str, Any]:

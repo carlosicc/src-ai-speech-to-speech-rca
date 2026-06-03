@@ -10,10 +10,14 @@ build/
 # CDK
 cdk.out/
 .cdk.staging/
+cdk.context.json
 
 # Node
 node_modules/
 dist/
+
+# Frontend build artifacts (rebuild with: cd src_frontend/app && npm run build)
+src_backend/static/
 
 # IDE
 .idea/
@@ -23,6 +27,8 @@ dist/
 # Secrets (CRITICAL)
 .env.*
 !.env.template
+!.env.production.template
+cdk.context.local.json
 CLAUDE.local.md
 .claude/settings.local.json
 
@@ -33,6 +39,7 @@ Thumbs.db
 # Temporary
 *.tmp
 *.log
+replacements.txt
 .claude/
 .demo-pids/
 

@@ -53,15 +53,15 @@
         "enable_whatsapp": false,
         "enable_jira": false
       },
-      "nlb_cert_arn": "arn:aws:acm:eu-west-1:000000000000:certificate/00000000-0000-0000-0000-000000000001",
+      "nlb_cert_arn": "REPLACE_WITH_YOUR_NLB_CERT_ARN",
       "twilio": {
         "secret_name": "rca/twilio/credentials",
-        "secret_arn": "arn:aws:secretsmanager:eu-west-1:000000000000:secret:rca-secret-twilio-000000000000-eu-west-1-dev01-XXXXXX"
+        "secret_arn": "REPLACE_WITH_YOUR_TWILIO_SECRET_ARN"
       },
       "agentcore": {
-        "runtime_arn": "arn:aws:bedrock-agentcore:eu-west-1:000000000000:runtime/rca_voice_agent_dev01-XXXXXXXXXX"
+        "runtime_arn": "REPLACE_WITH_YOUR_AGENTCORE_RUNTIME_ARN"
       },
-      "api_token": "REDACTED_API_TOKEN"
+      "api_token": "REPLACE_WITH_YOUR_API_TOKEN"
     },
     "prod": {
       "project_name": "rca",

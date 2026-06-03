@@ -97,6 +97,10 @@ def _authenticate_user(passphrase: str) -> dict[str, Any]:
     normalized = passphrase.strip().lower()
     expected = VOICE_PASSPHRASE.strip().lower()
 
+    if not expected:
+        logger.error("VOICE_PASSPHRASE not configured")
+        return {"status": "failed", "message": "Voice authentication not configured."}
+
     # Exact match or substring match
     if normalized == expected or expected in normalized:
         logger.info("Voice authentication successful")

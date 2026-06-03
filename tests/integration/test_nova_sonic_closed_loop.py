@@ -66,7 +66,7 @@ def _fixture_path(name: str) -> str:
 
 @pytest.mark.asyncio
 async def test_correct_passphrase_invokes_authenticate():
-    """Nova Sonic hears 'REDACTED_PASSPHRASE' and calls authenticate_user tool with success."""
+    """Nova Sonic hears 'test passphrase' and calls authenticate_user tool with success."""
     result = await run_nova_sonic_test(
         audio_path=_fixture_path("correct_passphrase"),
         system_prompt=SYSTEM_PROMPT,

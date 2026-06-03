@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
+import json
 import os
+from pathlib import Path
 
 import aws_cdk as cdk
 
@@ -7,6 +9,18 @@ from src_infra.stack_infrastructure import InfrastructureStack
 from src_infra.stack_backend import BackendStack
 from src_infra.stack_frontend import FrontendStack
 from src_infra.stack_agentcore import AgentCoreStack
+
+
+def deep_merge(base: dict, override: dict) -> dict:
+    """Recursively merge override into base, returning a new dict."""
+    result = base.copy()
+    for key, value in override.items():
+        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+            result[key] = deep_merge(result[key], value)
+        else:
+            result[key] = value
+    return result
+
 
 app = cdk.App()
 
@@ -16,6 +30,14 @@ env_context = app.node.try_get_context(env_name)
 
 if not env_context:
     raise ValueError(f"No context found for environment: {env_name}")
+
+# Merge local overrides (gitignored) on top of cdk.json context
+local_context_path = Path(__file__).parent / "cdk.context.local.json"
+if local_context_path.exists():
+    local_data = json.loads(local_context_path.read_text())
+    local_env = local_data.get(env_name, {})
+    if local_env:
+        env_context = deep_merge(env_context, local_env)
 
 # AWS environment
 aws_env = cdk.Environment(

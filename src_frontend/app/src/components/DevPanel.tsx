@@ -22,7 +22,7 @@ export function DevPanel() {
   const connected = useSceneStore((s) => s.connected);
 
   const [voiceMode, setVoiceMode] = useState("mode_b");
-  const [phoneNumber, setPhoneNumber] = useState("+44XXXXXXXXXX");
+  const [phoneNumber, setPhoneNumber] = useState(import.meta.env.VITE_DEFAULT_PHONE_NUMBER || "");
   const [micActive, setMicActive] = useState(false);
   const callActive = useVoiceStore((s) => s.callActive);
   const transcripts = useVoiceStore((s) => s.transcripts);

@@ -1,0 +1,11 @@
+{
+  "dev01": {
+    "nlb_cert_arn": "arn:aws:acm:eu-west-1:ACCOUNT_ID:certificate/YOUR-CERT-UUID",
+    "twilio": {
+      "secret_arn": "arn:aws:secretsmanager:eu-west-1:ACCOUNT_ID:secret:YOUR-SECRET-NAME-XXXXXX"
+    },
+    "agentcore": {
+      "runtime_arn": "arn:aws:bedrock-agentcore:eu-west-1:ACCOUNT_ID:runtime/YOUR_RUNTIME_ID"
+    }
+  }
+}

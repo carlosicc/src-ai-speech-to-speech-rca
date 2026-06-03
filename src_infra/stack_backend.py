@@ -64,10 +64,11 @@ class BackendStack(Stack):
         infrastructure.raw_data_bucket.grant_read_write(task_role)
 
         # Twilio secret (account_sid, auth_token, from_number as JSON)
+        from aws_cdk import aws_secretsmanager as secretsmanager
+
         twilio_config = env_context.get("twilio", {})
         twilio_secret_arn = twilio_config.get("secret_arn", "") or self.node.try_get_context("twilio_secret_arn") or ""
         if twilio_secret_arn:
-            from aws_cdk import aws_secretsmanager as secretsmanager
             twilio_secret = secretsmanager.Secret.from_secret_complete_arn(
                 self, f"TwilioSecret-{env_name}", twilio_secret_arn
             )
@@ -79,6 +80,20 @@ class BackendStack(Stack):
                     resources=[f"arn:aws:secretsmanager:*:{self.account}:secret:rca-secret-twilio-*"],
                 )
             )
+
+        # App config secret (voice_passphrase, api_token, default_phone_number)
+        app_config_secret_arn = env_context.get("app_config_secret_arn", "")
+        if app_config_secret_arn:
+            app_config_secret = secretsmanager.Secret.from_secret_complete_arn(
+                self, f"AppConfigSecret-{env_name}", app_config_secret_arn
+            )
+        else:
+            app_config_secret = secretsmanager.Secret.from_secret_name_v2(
+                self, f"AppConfigSecret-{env_name}",
+                f"{project_name}-secret-app-config-{self.account}-{self.region}-{env_name}",
+            )
+        app_config_secret.grant_read(task_role)
+        app_config_secret.grant_read(execution_role)
 
         # Bedrock invoke permission — cross-region inference profiles route to multiple regions
         task_role.add_to_policy(
@@ -241,7 +256,6 @@ class BackendStack(Stack):
             environment={
                 "WS_PORT": "8080",
                 "INCIDENT_LOOP_INTERVAL": "180",
-                "DEFAULT_PHONE_NUMBER": "+44XXXXXXXXXX",
                 "DEFAULT_VOICE_MODE": "mode_b",
                 "BEDROCK_REGION": bedrock_config.get("region", "eu-west-1"),
                 "BEDROCK_MODEL_ID": bedrock_config.get("models", {}).get("standard", {}).get(
@@ -251,7 +265,6 @@ class BackendStack(Stack):
                     "model_id", "amazon.nova-2-sonic-v1:0"
                 ),
                 "NOVA_SONIC_REGION": "eu-north-1",
-                "VOICE_PASSPHRASE": "REDACTED_PASSPHRASE",
                 "VOICE_SESSION_TIMEOUT": "90",
                 "DDB_TABLE_NAME": infrastructure.main_table.table_name,
                 "TWILIO_SECRET_ARN": twilio_secret_arn,
@@ -259,12 +272,16 @@ class BackendStack(Stack):
                     "runtime_arn", ""
                 ),
                 "AGENTCORE_REGION": env_context.get("region", "eu-west-1"),
-                "API_TOKEN": env_context.get("api_token", ""),
                 "RDS_CLUSTER_ENDPOINT": self.aurora_cluster.cluster_endpoint.hostname,
                 "RDS_SECRET_ARN": self.aurora_cluster.secret.secret_arn,
                 "RDS_CLUSTER_ID": f"{project_name}-rds-aurora-cluster-{env_name}",
                 "RDS_SECURITY_GROUP_ID": self.rds_sg.security_group_id,
                 "ECS_SECURITY_GROUP_ID": service_sg.security_group_id,
+            },
+            secrets={
+                "VOICE_PASSPHRASE": ecs.Secret.from_secrets_manager(app_config_secret, "voice_passphrase"),
+                "API_TOKEN": ecs.Secret.from_secrets_manager(app_config_secret, "api_token"),
+                "DEFAULT_PHONE_NUMBER": ecs.Secret.from_secrets_manager(app_config_secret, "default_phone_number"),
             },
             health_check=ecs.HealthCheck(
                 command=["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"],

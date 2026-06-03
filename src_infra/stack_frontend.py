@@ -47,10 +47,9 @@ class FrontendStack(Stack):
         account_id = Stack.of(self).account
         region = Stack.of(self).region
 
-        # Demo credentials (base64 of "demo:REDACTED_PASSWORD")
         import base64
-        demo_user = "demo"
-        demo_pass = "REDACTED_PASSWORD"
+        demo_user = env_context.get("basic_auth_user", "demo")
+        demo_pass = env_context.get("basic_auth_pass", "REPLACE_ME")
         credentials_b64 = base64.b64encode(f"{demo_user}:{demo_pass}".encode()).decode()
 
         # S3 bucket for static frontend assets

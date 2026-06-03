@@ -11,7 +11,7 @@ from strands import tool
 
 logger = logging.getLogger(__name__)
 
-VOICE_PASSPHRASE = os.environ.get("VOICE_PASSPHRASE", "REDACTED_PASSPHRASE")
+VOICE_PASSPHRASE = os.environ.get("VOICE_PASSPHRASE", "")
 
 
 @tool
@@ -26,6 +26,10 @@ def authenticate_user(spoken_passphrase: str) -> dict:
     """
     normalized = spoken_passphrase.lower().strip()
     expected = VOICE_PASSPHRASE.lower().strip()
+
+    if not expected:
+        logger.error("VOICE_PASSPHRASE not configured")
+        return {"authenticated": False, "message": "Voice authentication not configured."}
 
     if expected in normalized or normalized in expected:
         logger.info("Voice authentication PASSED")
