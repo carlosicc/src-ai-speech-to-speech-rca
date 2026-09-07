@@ -60,6 +60,7 @@ async def place_outbound_call(to_number: str, media_stream_url: str) -> str | No
             from_=from_number,
             to=to_number,
             twiml=twiml,
+            time_limit=180,
         )
         logger.info(f"Twilio outbound call placed: SID={call.sid} to={to_number}")
         return call.sid
