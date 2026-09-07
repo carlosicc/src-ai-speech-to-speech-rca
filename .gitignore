@@ -23,6 +23,7 @@ src_backend/static/
 .idea/
 .vscode/
 *.swp
+*.kiro
 
 # Secrets (CRITICAL)
 .env.*
