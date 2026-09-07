@@ -1,9 +1,12 @@
 import asyncio
 import logging
+from typing import Any
 
 from shared.config import INCIDENT_LOOP_INTERVAL, VOICE_SESSION_TIMEOUT, TWILIO_CALLING_TIMEOUT
 from shared.state import Phase, demo_state
 from websocket_server import broadcast_phase_change, build_system_status, manager
+
+VOICE_HARD_CEILING: float = 300.0
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +26,7 @@ class DemoController:
         self._loop_task: asyncio.Task | None = None
         self._phase_task: asyncio.Task | None = None
         self._auto_triggered: bool = False
+        self._voice_session_ran: bool = False
 
     async def start(self) -> None:
         from agents.master_agent import set_broadcast
@@ -49,6 +53,7 @@ class DemoController:
                 pass
         self._phase_task = None
         self._auto_triggered = False
+        self._voice_session_ran = False
 
     async def _broadcast_phase_change(self) -> None:
         await broadcast_phase_change(demo_state)
@@ -57,6 +62,7 @@ class DemoController:
         if demo_state.phase != Phase.HEALTHY:
             return
         self._auto_triggered = auto
+        self._voice_session_ran = False
         demo_state.trigger_incident(service)
         await manager.broadcast({
             "type": "incident_detected",
@@ -84,6 +90,11 @@ class DemoController:
                     continue
                 continue
             elif demo_state.phase == Phase.CALLING:
+                if self._voice_session_ran:
+                    logger.warning("Voice session already ran this incident — skipping re-entry, advancing phase")
+                    demo_state.advance_phase()
+                    await broadcast_phase_change(demo_state)
+                    continue
                 await self._run_voice_session()
             else:
                 duration = PHASE_DURATIONS.get(demo_state.phase, 3.0)
@@ -222,6 +233,7 @@ class DemoController:
         })
 
     async def _run_voice_session(self) -> None:
+        self._voice_session_ran = True
         voice_mode = demo_state.voice_mode
         demo_state.active_agent = "voice"
         # Only place real phone calls on manual trigger — never on auto-loop
@@ -250,18 +262,35 @@ class DemoController:
                 "payload": {"message": "Waiting for on-call DBA to connect (click Start Mic)...", "level": "info"},
             })
 
-        timeout = TWILIO_CALLING_TIMEOUT if voice_mode in ("mode_a", "mode_b") else VOICE_SESSION_TIMEOUT
-        elapsed = 0.0
-        while demo_state.phase == Phase.CALLING and elapsed < timeout:
-            await asyncio.sleep(1.0)
-            elapsed += 1.0
-
+        idle_timeout = TWILIO_CALLING_TIMEOUT if voice_mode in ("mode_a", "mode_b") else VOICE_SESSION_TIMEOUT
+        idle_elapsed = 0.0
+        total_elapsed = 0.0
         from voice.voice_router import voice_router
+        while demo_state.phase == Phase.CALLING and total_elapsed < VOICE_HARD_CEILING:
+            await asyncio.sleep(1.0)
+            total_elapsed += 1.0
+            # Reset idle timer if Twilio audio is actively flowing
+            handler = self._get_twilio_handler(voice_router)
+            if handler and handler.active:
+                idle_elapsed = 0.0
+            else:
+                idle_elapsed += 1.0
+            if idle_elapsed >= idle_timeout:
+                break
+
         if voice_router.active:
-            logger.info("Voice session timeout reached, stopping")
+            logger.info(f"Voice session timeout reached (idle={idle_elapsed:.0f}s, total={total_elapsed:.0f}s), stopping")
             await voice_router.stop_session()
 
         demo_state.active_agent = "master"
+
+    @staticmethod
+    def _get_twilio_handler(voice_router) -> Any:
+        """Get the active TwilioMediaStreamHandler if one exists."""
+        twilio_session = voice_router.twilio_session
+        if twilio_session:
+            return getattr(twilio_session, "_handler", None)
+        return None
 
     async def _start_twilio_voice_session(self) -> None:
         """Start a Mode B voice session (outbound Twilio call)."""
