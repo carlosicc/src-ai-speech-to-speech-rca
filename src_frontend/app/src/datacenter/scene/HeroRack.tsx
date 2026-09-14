@@ -51,7 +51,13 @@ export function HeroRack({ rack }: { rack: HeroRackConfig }) {
           emissiveIntensity={health === "healthy" ? 0.35 : 1.2}
         />
       </mesh>
-      <Html position={[0, RACK.height + 0.45, RACK.depth / 2]} center distanceFactor={7} zIndexRange={[10, 0]}>
+      <Html
+        position={[0, RACK.height + 0.45, RACK.depth / 2]}
+        center
+        distanceFactor={7}
+        zIndexRange={[10, 0]}
+        style={{ pointerEvents: "none" }}
+      >
         <div className={`dc-rack-label dc-rack-label--${health}`}>
           <div className="dc-rack-title">{rack.label}</div>
           <div className="dc-rack-metrics">

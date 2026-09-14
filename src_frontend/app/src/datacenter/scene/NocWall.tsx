@@ -25,8 +25,8 @@ export function NocWall() {
         <boxGeometry args={[NOC_WALL.width + 0.3, NOC_WALL.height + 0.3, 0.1]} />
         <meshStandardMaterial color="#0a0c0f" metalness={0.5} roughness={0.5} />
       </mesh>
-      {/* In drei transform mode 1 CSS px = 1 world unit before scale; 1000px × 0.01 = 10 m. */}
-      <Html transform position={[0, 0, 0.001]} scale={NOC_WALL.htmlScale} zIndexRange={[5, 0]}>
+      {/* drei transform mode: 1 CSS px = 0.025 world units × scale; 1000px × 0.025 × 0.4 = 10 m. */}
+      <Html transform position={[0, 0, 0.001]} scale={NOC_WALL.htmlScale} zIndexRange={[5, 0]} pointerEvents="none">
         <div className={`dc-noc dc-noc--${phase.toLowerCase()}`}>
           <div className="dc-noc-header">
             <span>AI OPERATIONS CENTER</span>
