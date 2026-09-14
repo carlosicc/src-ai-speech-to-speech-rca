@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { shotForPhase } from "@/datacenter/lib/cameraDirector";
+import { RACK, RACK_BOXES } from "@/datacenter/config/layout";
 import type { SceneState } from "@/types/scene";
 
 const PHASES: SceneState[] = ["HEALTHY", "INCIDENT_DETECTED", "DIAGNOSING", "CALLING", "RECOVERING", "RESOLVED"];
@@ -26,6 +27,14 @@ describe("shotForPhase", () => {
       expect(Math.abs(position[2])).toBeLessThan(20);
       expect(position[1]).toBeGreaterThan(0.5);
       expect(position[1]).toBeLessThan(4.2);
+    }
+  });
+
+  it("never parks a fixed shot inside a rack row", () => {
+    for (const p of PHASES.filter((p) => p !== "HEALTHY")) {
+      const [x, y, z] = shotForPhase(p, 0).position;
+      const insideSlab = RACK_BOXES.some((b) => x > b.minX && x < b.maxX && z > b.minZ && z < b.maxZ);
+      expect(insideSlab && y < RACK.height + 0.5).toBe(false);
     }
   });
 });

@@ -21,12 +21,12 @@ export function shotForPhase(phase: SceneState, t: number): Shot {
     }
     case "INCIDENT_DETECTED":
     case "DIAGNOSING":
-      return { position: [1.5, 2.4, 8.5], target: AURORA_RACK };
+      return { position: [1.5, 2.4, 7.4], target: AURORA_RACK };
     case "CALLING":
       return { position: [0, 2.6, -11], target: NOC_SCREEN };
     case "RECOVERING":
-      return { position: [0.8, 1.6, 7.8], target: LINK_BRIDGE };
+      return { position: [0.8, 2.4, 7.6], target: LINK_BRIDGE };
     case "RESOLVED":
-      return { position: [0, 3.9, 16], target: [0, 1, -2] };
+      return { position: [0, 3.6, 15], target: [0, 1, -2] };
   }
 }
