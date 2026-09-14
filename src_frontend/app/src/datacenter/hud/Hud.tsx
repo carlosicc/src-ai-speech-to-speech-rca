@@ -34,6 +34,7 @@ export function Hud() {
   const callActive = useVoiceStore((s) => s.callActive);
 
   const allowed = canDisconnect(phase, link, pendingRequestId);
+  const buttonAllowed = allowed && (mode === "director" || lookingAtLink);
   const progressPct = Math.round(hold.progress * 100);
 
   return (
@@ -90,11 +91,19 @@ export function Hud() {
       <footer className="dc-presenter">
         <button
           className={`dc-btn dc-btn--danger ${hold.holding ? "dc-btn--holding" : ""}`}
-          disabled={!allowed}
-          onPointerDown={() => allowed && holdDispatch({ type: "press" })}
+          disabled={!buttonAllowed}
+          onPointerDown={(e) => {
+            if (e.button !== 0 || !buttonAllowed) return;
+            holdDispatch({ type: "press" });
+          }}
           onPointerUp={() => holdDispatch({ type: "release" })}
           onPointerLeave={() => holdDispatch({ type: "release" })}
-          title="Hold for 1.25 s to remove the real security-group rule"
+          onPointerCancel={() => holdDispatch({ type: "release" })}
+          title={
+            mode === "walk" && !lookingAtLink
+              ? "In walk mode, face the service bridge (G) first"
+              : "Hold for 1.25 s to remove the real security-group rule"
+          }
         >
           {hold.holding ? `DISCONNECTING… ${progressPct}%` : "HOLD TO DISCONNECT LINK"}
         </button>
