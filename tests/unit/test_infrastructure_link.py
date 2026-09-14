@@ -77,3 +77,76 @@ class TestLinkState:
 
         assert demo_state.link_status == LinkStatus.RESTORING
         assert _statuses(mock_bc) == ["restoring"]
+
+
+class TestBreakDatabaseLinkEvents:
+    @pytest.mark.asyncio
+    async def test_success_broadcasts_disconnecting_then_disconnected(self):
+        from websocket_server import handle_client_message
+
+        with patch("websocket_server.manager.broadcast", new_callable=AsyncMock) as mock_bc, \
+             patch("shared.network_operations.revoke_db_access", new_callable=AsyncMock,
+                   return_value={"status": "success", "message": "removed"}), \
+             patch("demo_controller.demo_controller.trigger_incident", new_callable=AsyncMock) as mock_trigger:
+            await handle_client_message(json.dumps({
+                "type": "break_database",
+                "payload": {"request_id": "req-1", "source": "datacenter_3d", "link_id": "ecs-aurora"},
+            }))
+
+        assert _statuses(mock_bc) == ["disconnecting", "disconnected"]
+        assert all(p["request_id"] == "req-1" for p in _link_messages(mock_bc))
+        assert demo_state.link_status == LinkStatus.DISCONNECTED
+        mock_trigger.assert_called_once_with("aurora-db")
+
+    @pytest.mark.asyncio
+    async def test_already_revoked_counts_as_disconnected(self):
+        from websocket_server import handle_client_message
+
+        with patch("websocket_server.manager.broadcast", new_callable=AsyncMock) as mock_bc, \
+             patch("shared.network_operations.revoke_db_access", new_callable=AsyncMock,
+                   return_value={"status": "already_revoked", "message": "absent"}), \
+             patch("demo_controller.demo_controller.trigger_incident", new_callable=AsyncMock) as mock_trigger:
+            await handle_client_message(json.dumps({"type": "break_database", "payload": {}}))
+
+        assert _statuses(mock_bc) == ["disconnecting", "disconnected"]
+        mock_trigger.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_aws_error_broadcasts_error_and_rolls_back(self):
+        from websocket_server import handle_client_message
+
+        with patch("websocket_server.manager.broadcast", new_callable=AsyncMock) as mock_bc, \
+             patch("shared.network_operations.revoke_db_access", new_callable=AsyncMock,
+                   return_value={"status": "error", "message": "boom"}), \
+             patch("demo_controller.demo_controller.trigger_incident", new_callable=AsyncMock) as mock_trigger:
+            await handle_client_message(json.dumps({"type": "break_database", "payload": {"request_id": "req-2"}}))
+
+        assert _statuses(mock_bc) == ["disconnecting", "error"]
+        assert _link_messages(mock_bc)[-1]["message"] == "boom"
+        assert demo_state.link_status == LinkStatus.CONNECTED
+        mock_trigger.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_duplicate_break_while_disconnecting_is_ignored(self):
+        from websocket_server import handle_client_message
+
+        demo_state.link_status = LinkStatus.DISCONNECTING
+        with patch("websocket_server.manager.broadcast", new_callable=AsyncMock) as mock_bc, \
+             patch("shared.network_operations.revoke_db_access", new_callable=AsyncMock) as mock_revoke:
+            await handle_client_message(json.dumps({"type": "break_database", "payload": {"request_id": "req-3"}}))
+
+        mock_revoke.assert_not_called()
+        assert _statuses(mock_bc) == []
+
+    @pytest.mark.asyncio
+    async def test_empty_payload_is_still_accepted(self):
+        from websocket_server import handle_client_message
+
+        with patch("websocket_server.manager.broadcast", new_callable=AsyncMock) as mock_bc, \
+             patch("shared.network_operations.revoke_db_access", new_callable=AsyncMock,
+                   return_value={"status": "success", "message": "removed"}), \
+             patch("demo_controller.demo_controller.trigger_incident", new_callable=AsyncMock):
+            await handle_client_message(json.dumps({"type": "break_database", "payload": {}}))
+
+        assert _statuses(mock_bc) == ["disconnecting", "disconnected"]
+        assert all("request_id" not in p for p in _link_messages(mock_bc))

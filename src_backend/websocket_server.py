@@ -140,16 +140,27 @@ async def handle_client_message(data: str) -> None:
     payload = message.get("payload", {})
 
     if msg_type == "break_database":
-        if demo_state.phase == Phase.HEALTHY:
-            from shared.network_operations import revoke_db_access
-            result = await revoke_db_access()
-            await manager.broadcast({
-                "type": "agent_log",
-                "payload": {"message": f"Break DB: {result['message']}", "level": "warn"},
-            })
-            if result["status"] in ("success", "already_revoked"):
-                from demo_controller import demo_controller
-                await demo_controller.trigger_incident("aurora-db")
+        request_id = payload.get("request_id")
+        if demo_state.phase != Phase.HEALTHY:
+            logger.info("break_database ignored: phase is not HEALTHY")
+            return
+        if demo_state.link_status == LinkStatus.DISCONNECTING:
+            logger.warning("break_database ignored: a disconnect is already in progress")
+            return
+        from shared.network_operations import revoke_db_access
+        await set_link_status(LinkStatus.DISCONNECTING, request_id, "Removing ECS -> Aurora TCP/3306 rule")
+        result = await revoke_db_access()
+        await manager.broadcast({
+            "type": "agent_log",
+            "payload": {"message": f"Break DB: {result['message']}", "level": "warn"},
+        })
+        if result["status"] in ("success", "already_revoked"):
+            await set_link_status(LinkStatus.DISCONNECTED, request_id, result["message"])
+            from demo_controller import demo_controller
+            await demo_controller.trigger_incident("aurora-db")
+        else:
+            demo_state.link_status = LinkStatus.CONNECTED
+            await broadcast_link_error(result["message"], request_id)
 
     elif msg_type == "trigger_incident":
         service = payload.get("service", "aurora-db")
