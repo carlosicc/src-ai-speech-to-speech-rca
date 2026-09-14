@@ -58,8 +58,8 @@ export const LINK_POINTS: Vec3[] = [
   [3.5, 1.6, 3.62],
 ];
 
-export const LINK_TARGET = { position: [0, 0.3, 4.6] as Vec3, size: [1.2, 0.5, 0.7] as Vec3 };
+export const LINK_TARGET = { position: [0, 1.2, 4.6] as Vec3, size: [1.2, 2.4, 0.7] as Vec3 };
 /** Where the "G" key auto-walks the player: in front of the bridge, facing −z. */
-export const LINK_STAND_POINT = { position: [0, 1.7, 7.5] as Vec3, yaw: 0 };
+export const LINK_STAND_POINT = { position: [0, 1.7, 7.0] as Vec3, yaw: 0 };
 
 export const NOC_WALL = { position: [0, 2.2, -19.7] as Vec3, width: 10, height: 3, htmlScale: 0.01 };
