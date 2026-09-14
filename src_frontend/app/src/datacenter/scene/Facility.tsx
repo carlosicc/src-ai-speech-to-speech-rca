@@ -25,7 +25,7 @@ export function Facility() {
   });
 
   return (
-    <group>
+    <>
       <color attach="background" args={["#07090c"]} />
       <fog attach="fog" args={["#07090c", 6, 48]} />
       <ambientLight intensity={0.35} />
@@ -85,6 +85,6 @@ export function Facility() {
         <boxGeometry args={[0.2, ROOM.height, ROOM.depth]} />
         <meshStandardMaterial color={WALL_COLOR} roughness={0.9} />
       </mesh>
-    </group>
+    </>
   );
 }
