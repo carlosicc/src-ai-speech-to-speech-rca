@@ -52,7 +52,13 @@ export function Hud() {
           {lookingAtLink && (
             <div className="dc-prompt">
               <div>ECS → AURORA APPLICATION LINK · TCP/3306</div>
-              <div>{allowed ? "Hold E to disconnect — this triggers a real demo incident" : "Link locked during incident"}</div>
+              <div>
+                {allowed
+                  ? "Hold E to disconnect — this triggers a real demo incident"
+                  : phase === "HEALTHY"
+                    ? "Link down — press RESET to restore the rule"
+                    : "Link locked during incident"}
+              </div>
               {hold.holding && <div className="dc-progress"><div style={{ width: `${progressPct}%` }} /></div>}
             </div>
           )}
