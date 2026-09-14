@@ -26,11 +26,14 @@ export function Interaction() {
     const up = (e: KeyboardEvent) => {
       if (e.key.toLowerCase() === "e") useDataCenterUiStore.getState().holdDispatch({ type: "release" });
     };
+    const blur = () => useDataCenterUiStore.getState().holdDispatch({ type: "cancel" });
     window.addEventListener("keydown", down);
     window.addEventListener("keyup", up);
+    window.addEventListener("blur", blur);
     return () => {
       window.removeEventListener("keydown", down);
       window.removeEventListener("keyup", up);
+      window.removeEventListener("blur", blur);
     };
   }, []);
 
@@ -48,7 +51,7 @@ export function Interaction() {
       ui.setLookingAtLink(false);
     }
 
-    if (ui.hold.holding) ui.holdDispatch({ type: "tick", dt });
+    if (ui.hold.holding) ui.holdDispatch({ type: "tick", dt: Math.min(dt, 0.05) });
   });
 
   return null;

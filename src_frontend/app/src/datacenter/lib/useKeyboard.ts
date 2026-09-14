@@ -17,6 +17,7 @@ export function useKeyboard(): MutableRefObject<Set<string>> {
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
       if (isTypingInField()) return;
+      if (e.metaKey || e.ctrlKey) return;
       const k = e.key.toLowerCase();
       if (!TRACKED.has(k)) return;
       keys.current.add(k);

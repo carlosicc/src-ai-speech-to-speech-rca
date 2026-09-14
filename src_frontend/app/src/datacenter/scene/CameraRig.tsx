@@ -12,7 +12,6 @@ const WALK_SPEED = 2.2; // m/s
 const SPRINT_MULT = 1.8;
 const TURN_SPEED = 1.6; // rad/s
 const DIRECTOR_DAMP = 2.5;
-const AUTOWALK_DAMP = 3;
 const MAX_STEP = 0.05;
 
 const shotPos = new Vector3();
@@ -26,7 +25,6 @@ export function CameraRig() {
   const yaw = useRef<number>(PLAYER.spawnYaw);
   const pos = useRef(new Vector3(...PLAYER.spawn));
   const lookAt = useRef(new Vector3(0, 1, 0));
-  const autoWalkTarget = useRef<Vector3 | null>(null);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -36,12 +34,12 @@ export function CameraRig() {
       if (k === "v") ui.toggleMode();
       if (k === "g") {
         ui.setMode("walk");
-        autoWalkTarget.current = new Vector3(...LINK_STAND_POINT.position);
+        pos.current.set(...LINK_STAND_POINT.position);
+        yaw.current = LINK_STAND_POINT.yaw;
       }
       if (k === "r") {
         pos.current.set(...PLAYER.spawn);
         yaw.current = PLAYER.spawnYaw;
-        autoWalkTarget.current = null;
       }
     };
     window.addEventListener("keydown", onKey);
@@ -66,28 +64,16 @@ export function CameraRig() {
     }
 
     const k = keys.current;
-    const target = autoWalkTarget.current;
-    if (target) {
-      if (k.size > 0) {
-        autoWalkTarget.current = null; // manual input cancels auto-walk
-      } else {
-        pos.current.x = MathUtils.damp(pos.current.x, target.x, AUTOWALK_DAMP, step);
-        pos.current.z = MathUtils.damp(pos.current.z, target.z, AUTOWALK_DAMP, step);
-        yaw.current = MathUtils.damp(yaw.current, LINK_STAND_POINT.yaw, AUTOWALK_DAMP, step);
-        if (Math.hypot(pos.current.x - target.x, pos.current.z - target.z) < 0.05) autoWalkTarget.current = null;
-      }
-    } else {
-      const turn = (k.has("arrowleft") || k.has("a") ? 1 : 0) - (k.has("arrowright") || k.has("d") ? 1 : 0);
-      const fwd = (k.has("arrowup") || k.has("w") ? 1 : 0) - (k.has("arrowdown") || k.has("s") ? 1 : 0);
-      yaw.current += turn * TURN_SPEED * step;
-      const dist = WALK_SPEED * (k.has("shift") ? SPRINT_MULT : 1) * fwd * step;
-      // yaw 0 looks toward -z
-      const dx = -Math.sin(yaw.current) * dist;
-      const dz = -Math.cos(yaw.current) * dist;
-      const next = resolveMove(pos.current.x, pos.current.z, dx, dz, RACK_BOXES, WALK_BOUNDS);
-      pos.current.x = next.x;
-      pos.current.z = next.z;
-    }
+    const turn = (k.has("arrowleft") || k.has("a") ? 1 : 0) - (k.has("arrowright") || k.has("d") ? 1 : 0);
+    const fwd = (k.has("arrowup") || k.has("w") ? 1 : 0) - (k.has("arrowdown") || k.has("s") ? 1 : 0);
+    yaw.current += turn * TURN_SPEED * step;
+    const dist = WALK_SPEED * (k.has("shift") ? SPRINT_MULT : 1) * fwd * step;
+    // yaw 0 looks toward -z
+    const dx = -Math.sin(yaw.current) * dist;
+    const dz = -Math.cos(yaw.current) * dist;
+    const next = resolveMove(pos.current.x, pos.current.z, dx, dz, RACK_BOXES, WALK_BOUNDS);
+    pos.current.x = next.x;
+    pos.current.z = next.z;
 
     camera.position.set(pos.current.x, PLAYER.eyeHeight, pos.current.z);
     camera.rotation.set(0, yaw.current, 0, "YXZ");
