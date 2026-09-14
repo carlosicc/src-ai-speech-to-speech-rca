@@ -1,11 +1,11 @@
 import json
 import logging
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Optional
 
 from fastapi import WebSocket, WebSocketDisconnect
 
-from shared.state import DemoState, Phase, demo_state
+from shared.state import DemoState, LinkStatus, Phase, demo_state
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +45,24 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
+LINK_ID = "ecs-aurora"
+
+
+def build_link_update(status: str, request_id: Optional[str] = None, message: str = "") -> dict[str, Any]:
+    payload: dict[str, Any] = {"link_id": LINK_ID, "status": status, "message": message}
+    if request_id:
+        payload["request_id"] = request_id
+    return {"type": "infrastructure_link_update", "payload": payload}
+
+
+async def set_link_status(status: LinkStatus, request_id: Optional[str] = None, message: str = "") -> None:
+    demo_state.link_status = status
+    await manager.broadcast(build_link_update(status.value, request_id, message))
+
+
+async def broadcast_link_error(message: str, request_id: Optional[str] = None) -> None:
+    await manager.broadcast(build_link_update("error", request_id, message))
+
 
 def build_system_status(state: DemoState) -> dict[str, Any]:
     services = ["aurora-db", "ecs-cluster", "lambda", "api-gateway", "s3-storage", "monitoring", "network"]
@@ -60,6 +78,14 @@ def build_system_status(state: DemoState) -> dict[str, Any]:
             "voice_mode": state.voice_mode,
             "auto_advance": state.auto_advance,
             "active_agent": state.active_agent,
+            "infrastructure_links": [{
+                "id": LINK_ID,
+                "source": "ecs-cluster",
+                "target": "aurora-db",
+                "protocol": "tcp",
+                "port": 3306,
+                "status": state.link_status.value,
+            }],
         },
     }
 

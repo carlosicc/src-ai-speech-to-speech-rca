@@ -29,6 +29,13 @@ PHASE_ORDER: list[Phase] = [
 ]
 
 
+class LinkStatus(str, Enum):
+    CONNECTED = "connected"
+    DISCONNECTING = "disconnecting"
+    DISCONNECTED = "disconnected"
+    RESTORING = "restoring"
+
+
 @dataclass
 class Incident:
     incident_id: str = field(default_factory=lambda: str(uuid4()))
@@ -45,6 +52,7 @@ class DemoState:
     phone_number: str = DEFAULT_PHONE_NUMBER
     auto_advance: bool = False
     active_agent: Optional[str] = None
+    link_status: LinkStatus = LinkStatus.CONNECTED
 
     def trigger_incident(self, service: str = "aurora-db") -> Incident:
         self.incident = Incident(service=service)
