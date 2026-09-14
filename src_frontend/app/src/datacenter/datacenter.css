@@ -125,6 +125,7 @@
 .dc-noc--recovering .dc-noc-phase { color: #fbbf24; }
 .dc-noc-body { display: grid; grid-template-columns: 1fr 1.6fr 1.2fr; gap: 20px; flex: 1; min-height: 0; }
 .dc-noc-body section { overflow: hidden; }
+.dc-noc-body h3 { margin: 0 0 6px; font-size: 12px; letter-spacing: 0.12em; color: #64748b; }
 .dc-noc-body p { margin: 0 0 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dc-noc-big { font-size: 22px; color: #f1f5f9; }
 .dc-noc-sub { color: #94a3b8; }
