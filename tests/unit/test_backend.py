@@ -205,8 +205,14 @@ class TestWebSocketEndpoint:
                 msg = ws.receive_json()
                 assert msg["type"] == "agent_log"
 
-                # Reset
+                # Reset: link lifecycle (restoring -> connected|error) precedes system_status
                 ws.send_json({"type": "reset_demo", "payload": {}})
+                msg = ws.receive_json()
+                assert msg["type"] == "infrastructure_link_update"
+                assert msg["payload"]["status"] == "restoring"
+                msg = ws.receive_json()
+                assert msg["type"] == "infrastructure_link_update"
+                assert msg["payload"]["status"] in ("connected", "error")
                 msg = ws.receive_json()
                 assert msg["type"] == "system_status"
 

@@ -64,6 +64,23 @@ async def broadcast_link_error(message: str, request_id: Optional[str] = None) -
     await manager.broadcast(build_link_update("error", request_id, message))
 
 
+async def sync_link_status_from_aws() -> None:
+    """Startup pre-check: make the real SG rule and demo_state.link_status agree."""
+    from shared.network_operations import check_sg_rule_exists, restore_db_access
+
+    if await check_sg_rule_exists():
+        demo_state.link_status = LinkStatus.CONNECTED
+        logger.info("Startup pre-check: SG rule present — database reachable")
+        return
+    logger.warning("Startup pre-check: SG rule for port 3306 is MISSING — auto-restoring")
+    result = await restore_db_access()
+    logger.info(f"Startup pre-check: restore_db_access result={result['status']}")
+    if result["status"] in ("success", "already_present"):
+        demo_state.link_status = LinkStatus.CONNECTED
+    else:
+        demo_state.link_status = LinkStatus.DISCONNECTED
+
+
 def build_system_status(state: DemoState) -> dict[str, Any]:
     services = ["aurora-db", "ecs-cluster", "lambda", "api-gateway", "s3-storage", "monitoring", "network"]
     systems = []
@@ -184,11 +201,15 @@ async def handle_client_message(data: str) -> None:
         await _cancel_inflight_twilio_call()
         demo_state.reset()
         from shared.network_operations import restore_db_access
+        await set_link_status(LinkStatus.RESTORING, None, "Restoring ECS -> Aurora TCP/3306 rule")
         restore_result = await restore_db_access()
         if restore_result["status"] in ("success", "already_present"):
             logger.info(f"Reset: SG rule confirmed present (result={restore_result['status']})")
+            await set_link_status(LinkStatus.CONNECTED, None, restore_result["message"])
         else:
             logger.warning(f"Reset: SG rule restore returned unexpected status: {restore_result}")
+            demo_state.link_status = LinkStatus.DISCONNECTED
+            await broadcast_link_error(restore_result["message"])
         await manager.broadcast(build_system_status(demo_state))
         await manager.broadcast({
             "type": "agent_log",

@@ -127,13 +127,20 @@ def _authenticate_user(passphrase: str) -> dict[str, Any]:
 
 async def _apply_network_fix(service: str) -> dict[str, Any]:
     from shared.network_operations import restore_db_access
+    from shared.state import LinkStatus
+    from websocket_server import broadcast_link_error, set_link_status
 
+    await set_link_status(LinkStatus.RESTORING, None, "DBA authorised recovery — restoring TCP/3306 rule")
     fix_result = await restore_db_access()
     logger.info(f"apply_network_fix result: {fix_result}")
 
     if fix_result["status"] == "error":
         from agents.diagnosis_agent import _broadcast_aws_error
         _broadcast_aws_error("apply_network_fix", Exception(fix_result["message"]))
+        demo_state.link_status = LinkStatus.DISCONNECTED
+        await broadcast_link_error(fix_result["message"])
+    else:
+        await set_link_status(LinkStatus.CONNECTED, None, fix_result["message"])
 
     if demo_state.phase == Phase.CALLING:
         demo_state.phase = Phase.RECOVERING

@@ -150,3 +150,90 @@ class TestBreakDatabaseLinkEvents:
 
         assert _statuses(mock_bc) == ["disconnecting", "disconnected"]
         assert all("request_id" not in p for p in _link_messages(mock_bc))
+
+
+class TestRestoreLinkEvents:
+    @pytest.mark.asyncio
+    async def test_reset_broadcasts_restoring_then_connected(self):
+        from websocket_server import handle_client_message
+
+        demo_state.link_status = LinkStatus.DISCONNECTED
+        with patch("websocket_server.manager.broadcast", new_callable=AsyncMock) as mock_bc, \
+             patch("shared.network_operations.restore_db_access", new_callable=AsyncMock,
+                   return_value={"status": "success", "message": "restored"}), \
+             patch("demo_controller.demo_controller.cancel_simulation", new_callable=AsyncMock), \
+             patch("voice.voice_router.voice_router.stop_session", new_callable=AsyncMock), \
+             patch("websocket_server._cancel_inflight_twilio_call", new_callable=AsyncMock):
+            await handle_client_message(json.dumps({"type": "reset_demo", "payload": {}}))
+
+        assert _statuses(mock_bc) == ["restoring", "connected"]
+        assert demo_state.link_status == LinkStatus.CONNECTED
+
+    @pytest.mark.asyncio
+    async def test_reset_restore_failure_broadcasts_error_and_stays_disconnected(self):
+        from websocket_server import handle_client_message
+
+        demo_state.link_status = LinkStatus.DISCONNECTED
+        with patch("websocket_server.manager.broadcast", new_callable=AsyncMock) as mock_bc, \
+             patch("shared.network_operations.restore_db_access", new_callable=AsyncMock,
+                   return_value={"status": "error", "message": "denied"}), \
+             patch("demo_controller.demo_controller.cancel_simulation", new_callable=AsyncMock), \
+             patch("voice.voice_router.voice_router.stop_session", new_callable=AsyncMock), \
+             patch("websocket_server._cancel_inflight_twilio_call", new_callable=AsyncMock):
+            await handle_client_message(json.dumps({"type": "reset_demo", "payload": {}}))
+
+        assert _statuses(mock_bc) == ["restoring", "error"]
+        assert demo_state.link_status == LinkStatus.DISCONNECTED
+
+    @pytest.mark.asyncio
+    async def test_voice_fix_broadcasts_restoring_then_connected(self):
+        from voice.voice_tools import _apply_network_fix
+
+        demo_state.trigger_incident("aurora-db")
+        demo_state.phase = Phase.CALLING
+        demo_state.link_status = LinkStatus.DISCONNECTED
+        with patch("websocket_server.manager.broadcast", new_callable=AsyncMock) as mock_bc, \
+             patch("shared.network_operations.restore_db_access", new_callable=AsyncMock,
+                   return_value={"status": "success", "message": "restored"}):
+            result = await _apply_network_fix("aurora-db")
+
+        assert result["status"] == "success"
+        assert _statuses(mock_bc) == ["restoring", "connected"]
+        assert demo_state.phase == Phase.RECOVERING
+
+
+class TestStartupSync:
+    @pytest.mark.asyncio
+    async def test_rule_present_sets_connected(self):
+        from websocket_server import sync_link_status_from_aws
+
+        demo_state.link_status = LinkStatus.DISCONNECTED
+        with patch("shared.network_operations.check_sg_rule_exists", new_callable=AsyncMock, return_value=True), \
+             patch("shared.network_operations.restore_db_access", new_callable=AsyncMock) as mock_restore:
+            await sync_link_status_from_aws()
+
+        assert demo_state.link_status == LinkStatus.CONNECTED
+        mock_restore.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_rule_missing_and_restore_fails_sets_disconnected(self):
+        from websocket_server import sync_link_status_from_aws
+
+        with patch("shared.network_operations.check_sg_rule_exists", new_callable=AsyncMock, return_value=False), \
+             patch("shared.network_operations.restore_db_access", new_callable=AsyncMock,
+                   return_value={"status": "error", "message": "denied"}):
+            await sync_link_status_from_aws()
+
+        assert demo_state.link_status == LinkStatus.DISCONNECTED
+
+    @pytest.mark.asyncio
+    async def test_rule_missing_and_restore_succeeds_sets_connected(self):
+        from websocket_server import sync_link_status_from_aws
+
+        demo_state.link_status = LinkStatus.DISCONNECTED
+        with patch("shared.network_operations.check_sg_rule_exists", new_callable=AsyncMock, return_value=False), \
+             patch("shared.network_operations.restore_db_access", new_callable=AsyncMock,
+                   return_value={"status": "success", "message": "restored"}):
+            await sync_link_status_from_aws()
+
+        assert demo_state.link_status == LinkStatus.CONNECTED

@@ -31,17 +31,10 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     from shared.config import load_twilio_credentials
-    from shared.network_operations import check_sg_rule_exists, restore_db_access
+    from websocket_server import sync_link_status_from_aws
 
     load_twilio_credentials()
-
-    rule_exists = await check_sg_rule_exists()
-    if not rule_exists:
-        logger.warning("Startup pre-check: SG rule for port 3306 is MISSING — auto-restoring")
-        result = await restore_db_access()
-        logger.info(f"Startup pre-check: restore_db_access result={result['status']}")
-    else:
-        logger.info("Startup pre-check: SG rule present — database reachable")
+    await sync_link_status_from_aws()
 
     await monitoring_simulator.start(manager.broadcast)
     await demo_controller.start()
