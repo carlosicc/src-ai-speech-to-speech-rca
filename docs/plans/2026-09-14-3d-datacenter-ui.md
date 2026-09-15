@@ -2578,35 +2578,35 @@ git commit -m "feat(datacenter): scene composition, operations HUD, page shell a
 
 No code in this task unless something breaks. Run the backend locally the way you normally do (see `docs/backend/`), then `npm run dev` in `src_frontend/app`.
 
-- [ ] **Step 1: Classic UI regression**
+- [x] **Step 1: Classic UI regression**
 
 Open `http://localhost:3000/`. City renders, sidebar metrics tick, Ctrl+D opens DevPanel, "Break DB" still works and the incident loop completes. Nothing here may have changed.
 
-- [ ] **Step 2: Director mode idle**
+- [x] **Step 2: Director mode idle**
 
 Open `http://localhost:3000/datacenter`. Expect: slow orbit over four rack rows, LEDs blinking, cyan cable with moving pulses between the ECS and Aurora racks, rack labels showing live CPU/MEM/IOPS, network rack showing `ALLOW ECS_SG → RDS_SG TCP/3306`, NOC wall readable from the orbit. Top bar shows `WS LIVE`, `HEALTHY`, `ECS→AURORA CONNECTED`.
 
-- [ ] **Step 3: Walk mode and interaction**
+- [x] **Step 3: Walk mode and interaction**
 
 Press `V`, then arrows to walk; confirm you cannot walk into racks or through walls. Press `R` to respawn. Press `G`: the camera jumps to the bridge stand point facing it; the reticle turns cyan and the prompt appears. Hold `E` for 1.25 s: prompt shows progress, cable turns amber (`disconnecting`), then red and split (`disconnected`), network rack shows `RULE MISSING`, alarm strobe starts, top bar phase goes to `INCIDENT DETECTED`. Release early once to confirm cancel works and nothing is sent (check backend log).
 
-- [ ] **Step 4: Director mode through the incident**
+- [ ] **Step 4: Director mode through the incident** — partially verified locally (2026-09-15): the `DIAGNOSING` fly-in to the Aurora rack and the wide pull-back on `RESOLVED` are confirmed. The `CALLING` NOC-wall move with transcript lines and the `RECOVERING` amber→cyan cable are **deferred to Step 8**: locally the Twilio call fails instantly (no phone number), so `CALLING` lasts ~150 ms and `_apply_network_fix` never runs.
 
 Press `V` back to director. Camera flies to the Aurora rack during `DIAGNOSING`, to the NOC wall during `CALLING` (transcript lines appear on the wall and in the right panel), to the bridge during `RECOVERING` where the cable turns amber then cyan and pulses resume, then pulls back wide on `RESOLVED`.
 
-- [ ] **Step 5: Presenter shortcut**
+- [x] **Step 5: Presenter shortcut**
 
 From `HEALTHY`, press and hold the `HOLD TO DISCONNECT LINK` button for 1.25 s with the mouse. Same sequence as Step 3 without walking. Releasing early must not send.
 
-- [ ] **Step 6: Reset and sync**
+- [x] **Step 6: Reset and sync**
 
 Click `RESET` mid-incident: cable goes amber then cyan, phase returns to `HEALTHY`. Refresh `/datacenter` mid-incident in a second tab: cable is already red, phase correct, presenter button disabled (hydrated from `system_status`). Break from the classic tab's DevPanel: the 3D tab's cable reacts.
 
-- [ ] **Step 7: Failure path**
+- [ ] **Step 7: Failure path** — partially verified locally (2026-09-15). With a bogus `RDS_SECURITY_GROUP_ID` the boot pre-check fails (`restore_db_access result=error`), the link comes up `disconnected`, the presenter button is `disabled`, and a full hold sends nothing (no revoke, no incident, real SG untouched) — so **"no incident starts" is confirmed**. The amber-flash→cyan rollback and red toast are **not reachable this way**: boot and revoke use the same SG pair, so a bogus id disables the button before any request is sent. Reaching them needs a genuine runtime AWS failure (denied permission / lost connectivity); no read-only profile exists for this account. Currently covered only by `infrastructureStore.test.ts` rollback tests.
 
 Temporarily point `RDS_SECURITY_GROUP_ID` at a non-existent group, restart the backend, hold to disconnect: cable flashes amber then returns cyan, red toast shows the AWS error, no incident starts. Restore the env var.
 
-- [ ] **Step 8: Deploy**
+- [x] **Step 8: Deploy** — deployed 2026-09-15. Deep link `https://<cf>/datacenter` returns 200 via the SPA fallback and renders at native resolution (3456×1748), `WS LIVE`, no console errors. Steps 2–3 re-verified on the deployed stack. Step 4 re-run with a real call: `CALLING` lasted ~90 s, NOC-wall event feed grew with call/RCA lines, and the voice agent's `apply_network_fix` genuinely restored the SG rule. Still **not** observed: the `RECOVERING` cable amber→cyan in a tab held open through the call (it stayed red until reload; backend state was correct), and the camera move to the NOC wall during `CALLING`. Fixed en route: `aws_sdk_bedrock_runtime` pin (commit `0d669fc`). Booth note: rack/NOC label text is too small at native resolution (caveat 5, `distanceFactor` untuned).
 
 Rebuild the frontend first (the CloudFront bucket only gets what `dist/` contains), then deploy both stacks:
 
@@ -2617,7 +2617,7 @@ cdk deploy RcaBackendStack-dev01 RcaFrontendStack-dev01
 
 Open `https://<cloudfront-domain>/datacenter` directly (deep link must work via the existing 403/404 → `index.html` fallback) and repeat Steps 2–4 once on the booth laptop at its native resolution.
 
-- [ ] **Step 9: Commit any fixes and add a README line**
+- [x] **Step 9: Commit any fixes and add a README line**
 
 Add under the demo/usage section of `README.md`:
 

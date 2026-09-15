@@ -214,6 +214,8 @@ python src_config/scripts/deploy_secrets.py --env dev01
 cd src_frontend/app && npm install && npm run dev
 ```
 
+- **3D data-center view:** open `/datacenter`. `V` toggles walk mode, `G` jumps to the service link, hold `E` (or the HUD button) to disconnect it. The classic view stays at `/`.
+
 ---
 
 ## Context
