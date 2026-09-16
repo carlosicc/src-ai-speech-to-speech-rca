@@ -11,7 +11,9 @@ const VOICE_MODE_TOOLTIPS: Record<string, string> = {
   mode_c: "Bedrock + Browser (mic/speaker, no phone)",
 };
 
-export function DevPanel() {
+/** `showAutoMode={false}` hides the auto-trigger toggle: auto incidents never break the real
+ *  SG rule, so in the 3D view the cable would stay cyan through a whole fake incident. */
+export function DevPanel({ showAutoMode = true }: { showAutoMode?: boolean }) {
   const [visible, setVisible] = useState(false);
   const state = useSceneStore((s) => s.state);
   const affectedService = useSceneStore((s) => s.affectedService);
@@ -113,13 +115,15 @@ export function DevPanel() {
               <button onClick={reset} title="Stop current incident, return to HEALTHY">
                 Reset
               </button>
-              <button
-                onClick={() => setAutoAdvance(!autoAdvance)}
-                title="Auto-trigger incidents every 3min for booth passersby"
-                className={autoAdvance ? "active" : ""}
-              >
-                Auto: {autoAdvance ? "ON" : "OFF"}
-              </button>
+              {showAutoMode && (
+                <button
+                  onClick={() => setAutoAdvance(!autoAdvance)}
+                  title="Auto-trigger incidents every 3min for booth passersby"
+                  className={autoAdvance ? "active" : ""}
+                >
+                  Auto: {autoAdvance ? "ON" : "OFF"}
+                </button>
+              )}
             </div>
           </div>
           <div className="dev-panel-section">

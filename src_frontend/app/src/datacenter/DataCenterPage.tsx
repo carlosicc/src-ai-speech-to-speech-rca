@@ -44,7 +44,7 @@ export function DataCenterPage() {
         </Suspense>
       </Canvas>
       <Hud />
-      <DevPanel />
+      <DevPanel showAutoMode={false} />
     </div>
   );
 }
