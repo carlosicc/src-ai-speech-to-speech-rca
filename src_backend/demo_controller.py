@@ -107,6 +107,32 @@ class DemoController:
                 demo_state.active_agent = None
                 await manager.broadcast(build_system_status(demo_state))
 
+        await self._ensure_link_restored()
+
+    async def _ensure_link_restored(self) -> None:
+        """Safety net: a run must never end with the TCP/3306 rule still revoked.
+
+        The rule is normally restored by the DBA authorising apply_network_fix, or by RESET.
+        When the voice call never gets that far (no answer, timeout, Twilio failure) the demo
+        would otherwise return to HEALTHY with the database still unreachable, leaving the 3D
+        link red and the presenter button disabled until someone pressed RESET.
+        """
+        from shared.network_operations import restore_db_access
+        from shared.state import LinkStatus
+        from websocket_server import broadcast_link_error, set_link_status
+
+        if demo_state.link_status == LinkStatus.CONNECTED:
+            return
+
+        result = await restore_db_access()
+        if result["status"] in ("success", "already_present"):
+            logger.info(f"End of run: restored TCP/3306 rule (result={result['status']})")
+            await set_link_status(LinkStatus.CONNECTED, None, result["message"])
+        else:
+            logger.error(f"End of run: failed to restore TCP/3306 rule: {result}")
+            demo_state.link_status = LinkStatus.DISCONNECTED
+            await broadcast_link_error(result["message"])
+
     async def _run_master_orchestration(self) -> None:
         """Master agent orchestrates: assess → diagnose → escalate to voice."""
         service = demo_state.incident.service if demo_state.incident else "aurora-db"

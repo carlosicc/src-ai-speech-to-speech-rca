@@ -237,3 +237,68 @@ class TestStartupSync:
             await sync_link_status_from_aws()
 
         assert demo_state.link_status == LinkStatus.CONNECTED
+
+
+class TestEndOfRunLinkRestore:
+    """A run must never end with the TCP/3306 rule still revoked.
+
+    The rule is normally restored by the DBA authorising apply_network_fix, or by RESET.
+    When the voice call never gets that far (no answer, timeout, Twilio failure) the demo
+    used to return to HEALTHY with the database still unreachable, leaving the 3D link red
+    and the presenter button disabled until someone pressed RESET.
+    """
+
+    @pytest.mark.asyncio
+    async def test_restores_rule_when_run_ends_disconnected(self):
+        from demo_controller import demo_controller
+
+        demo_state.link_status = LinkStatus.DISCONNECTED
+        with patch("shared.network_operations.restore_db_access", new_callable=AsyncMock,
+                   return_value={"status": "success", "message": "restored"}) as mock_restore, \
+             patch("websocket_server.manager.broadcast", new_callable=AsyncMock) as mock_broadcast:
+            await demo_controller._ensure_link_restored()
+
+        mock_restore.assert_awaited_once()
+        assert demo_state.link_status == LinkStatus.CONNECTED
+        assert _statuses(mock_broadcast) == ["connected"]
+
+    @pytest.mark.asyncio
+    async def test_no_aws_call_when_link_already_connected(self):
+        """Auto-loop incidents never break the link, so the safety net must stay quiet."""
+        from demo_controller import demo_controller
+
+        demo_state.link_status = LinkStatus.CONNECTED
+        with patch("shared.network_operations.restore_db_access", new_callable=AsyncMock) as mock_restore, \
+             patch("websocket_server.manager.broadcast", new_callable=AsyncMock) as mock_broadcast:
+            await demo_controller._ensure_link_restored()
+
+        mock_restore.assert_not_called()
+        assert _statuses(mock_broadcast) == []
+
+    @pytest.mark.asyncio
+    async def test_broadcasts_error_and_stays_disconnected_when_restore_fails(self):
+        from demo_controller import demo_controller
+
+        demo_state.link_status = LinkStatus.DISCONNECTED
+        with patch("shared.network_operations.restore_db_access", new_callable=AsyncMock,
+                   return_value={"status": "error", "message": "denied"}), \
+             patch("websocket_server.manager.broadcast", new_callable=AsyncMock) as mock_broadcast:
+            await demo_controller._ensure_link_restored()
+
+        assert demo_state.link_status == LinkStatus.DISCONNECTED
+        assert _statuses(mock_broadcast) == ["error"]
+
+    @pytest.mark.asyncio
+    async def test_phase_loop_runs_the_safety_net(self):
+        """Wiring check: _run_phases must invoke the net on the way out."""
+        from demo_controller import demo_controller
+
+        demo_state.phase = Phase.HEALTHY
+        demo_state.link_status = LinkStatus.DISCONNECTED
+        with patch("shared.network_operations.restore_db_access", new_callable=AsyncMock,
+                   return_value={"status": "success", "message": "restored"}) as mock_restore, \
+             patch("websocket_server.manager.broadcast", new_callable=AsyncMock):
+            await demo_controller._run_phases()
+
+        mock_restore.assert_awaited_once()
+        assert demo_state.link_status == LinkStatus.CONNECTED
