@@ -197,8 +197,10 @@ async def handle_client_message(data: str) -> None:
         from demo_controller import demo_controller
         from voice.voice_router import voice_router
         await demo_controller.cancel_simulation()
-        await voice_router.stop_session()
+        # Hang up before stopping the session: stop_session() clears the Twilio session that
+        # holds the call_sid, and without it the REST hangup is a no-op and the call runs on.
         await _cancel_inflight_twilio_call()
+        await voice_router.stop_session()
         demo_state.reset()
         from shared.network_operations import restore_db_access
         await set_link_status(LinkStatus.RESTORING, None, "Restoring ECS -> Aurora TCP/3306 rule")

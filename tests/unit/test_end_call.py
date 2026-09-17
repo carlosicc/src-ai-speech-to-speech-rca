@@ -100,6 +100,28 @@ class TestEndCall:
         assert demo_state.phase == Phase.RECOVERING
 
 
+class TestResetHangsUpTheCall:
+    @pytest.mark.asyncio
+    async def test_reset_hangs_up_before_dropping_the_voice_session(self) -> None:
+        """RESET stopped the session first, which clears the session holding the call_sid,
+        so the REST hangup silently did nothing and the DBA's phone kept talking."""
+        from websocket_server import handle_client_message
+
+        order: list[str] = []
+        demo_state.phase = Phase.CALLING
+        with patch("websocket_server.manager.broadcast", new_callable=AsyncMock), \
+             patch("demo_controller.demo_controller.cancel_simulation", new_callable=AsyncMock), \
+             patch("voice.voice_router.voice_router.stop_session", new_callable=AsyncMock,
+                   side_effect=lambda: order.append("stop_session")), \
+             patch("websocket_server._cancel_inflight_twilio_call", new_callable=AsyncMock,
+                   side_effect=lambda: order.append("hangup")), \
+             patch("shared.network_operations.restore_db_access", new_callable=AsyncMock,
+                   return_value={"status": "success", "message": "rule present"}):
+            await handle_client_message(json.dumps({"type": "reset_demo", "payload": {}}))
+
+        assert order == ["hangup", "stop_session"]
+
+
 class TestVoiceHardCeiling:
     def test_bounds_dead_air_to_two_minutes(self) -> None:
         """Automatic backstop for when nobody is at the console to press END CALL."""
