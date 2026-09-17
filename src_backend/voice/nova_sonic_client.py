@@ -7,7 +7,7 @@ from typing import Any, Callable, Coroutine
 from uuid import uuid4
 
 from shared.config import NOVA_SONIC_MODEL_ID, NOVA_SONIC_REGION
-from voice.voice_tools import TOOL_SPECS, execute_tool
+from voice.voice_tools import TOOL_SPECS, execute_tool, redact_passphrase
 
 logger = logging.getLogger(__name__)
 
@@ -352,7 +352,8 @@ class NovaSonicSession:
                         if audio_out_count <= 3:
                             logger.info(f"Nova Sonic audioOutput #{audio_out_count} (event #{event_count})")
                     elif event_count <= 20:
-                        logger.info(f"Nova Sonic event #{event_count}: {event_keys} payload={json.dumps(payload)[:500]}")
+                        safe_payload = redact_passphrase(json.dumps(payload))
+                        logger.info(f"Nova Sonic event #{event_count}: {event_keys} payload={safe_payload[:500]}")
                     await self._handle_response_event(payload)
                 else:
                     logger.warning(f"Nova Sonic empty response: value={result.value}")

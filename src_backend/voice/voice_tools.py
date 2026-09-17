@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 from typing import Any
 
 from shared.config import VOICE_PASSPHRASE
@@ -80,8 +81,28 @@ TOOL_SPECS: list[dict[str, Any]] = [
 ]
 
 
+SENSITIVE_TOOL_INPUT_KEYS: frozenset[str] = frozenset({"passphrase"})
+
+
+def _redact(tool_input: dict[str, Any]) -> dict[str, Any]:
+    """Mask secret-bearing tool arguments — these logs land in CloudWatch."""
+    return {k: ("***" if k in SENSITIVE_TOOL_INPUT_KEYS else v) for k, v in tool_input.items()}
+
+
+def redact_passphrase(text: str) -> str:
+    """Strip the demo passphrase out of free-form text before it is logged.
+
+    Nova Sonic event payloads carry the live transcript, so the spoken passphrase can
+    appear in text that is not a tool argument.
+    """
+    expected = VOICE_PASSPHRASE.strip()
+    if not expected:
+        return text
+    return re.sub(re.escape(expected), "***", text, flags=re.IGNORECASE)
+
+
 async def execute_tool(tool_name: str, tool_input: dict[str, Any]) -> dict[str, Any]:
-    logger.info(f"Executing voice tool: {tool_name} with input: {tool_input}")
+    logger.info(f"Executing voice tool: {tool_name} with input: {_redact(tool_input)}")
 
     if tool_name == "authenticate_user":
         return _authenticate_user(tool_input.get("passphrase", ""))
@@ -112,13 +133,14 @@ def _authenticate_user(passphrase: str) -> dict[str, Any]:
     # Word-level fuzzy match: accept if both words of the passphrase appear in the spoken text
     expected_words = expected.split()
     if len(expected_words) >= 2 and all(w in normalized for w in expected_words):
-        logger.info(f"Voice authentication successful (word-level match): '{normalized}'")
+        logger.info("Voice authentication successful (word-level match)")
         return {
             "status": "authenticated",
             "message": "Identity verified successfully. You are now authorized to execute recovery actions.",
         }
 
-    logger.warning(f"Voice authentication failed: '{normalized}' != '{expected}'")
+    # Word count only: enough to tell a mis-transcription from silence, without leaking either side.
+    logger.warning(f"Voice authentication failed: {len(normalized.split())} word(s) heard, no match")
     return {
         "status": "failed",
         "message": "Authentication failed. Passphrase did not match. Please try again.",

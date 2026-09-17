@@ -38,7 +38,7 @@ def authenticate_user(spoken_passphrase: str) -> dict:
             "message": "Identity verified. You are authorized to proceed.",
         }
     else:
-        logger.info(f"Voice authentication FAILED: '{normalized}' != '{expected}'")
+        logger.info(f"Voice authentication FAILED: {len(normalized.split())} word(s) heard, no match")
         return {
             "authenticated": False,
             "message": "Passphrase did not match. Please try again.",
