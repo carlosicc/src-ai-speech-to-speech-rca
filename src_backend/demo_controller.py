@@ -6,7 +6,9 @@ from shared.config import INCIDENT_LOOP_INTERVAL, VOICE_SESSION_TIMEOUT, TWILIO_
 from shared.state import Phase, demo_state
 from websocket_server import broadcast_phase_change, build_system_status, manager
 
-VOICE_HARD_CEILING: float = 300.0
+# Backstop for a call that is answered but useless (voicemail, phone in a pocket): the media
+# stream keeps flowing so the idle timer never fires. A real conversation runs 50-60s.
+VOICE_HARD_CEILING: float = 120.0
 
 logger = logging.getLogger(__name__)
 

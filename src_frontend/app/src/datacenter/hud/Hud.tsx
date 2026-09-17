@@ -16,6 +16,7 @@ export function Hud() {
   const connected = useSceneStore((s) => s.connected);
   const activeAgent = useSceneStore((s) => s.activeAgent);
   const reset = useSceneStore((s) => s.reset);
+  const endCall = useSceneStore((s) => s.endCall);
 
   const link = useInfrastructureStore((s) => s.link);
   const pendingRequestId = useInfrastructureStore((s) => s.pendingRequestId);
@@ -113,6 +114,15 @@ export function Hud() {
         >
           {hold.holding ? `DISCONNECTING… ${progressPct}%` : "HOLD TO DISCONNECT LINK"}
         </button>
+        {phase === "CALLING" && (
+          <button
+            className="dc-btn dc-btn--warn"
+            onClick={endCall}
+            title="Hang up and skip to recovery — use when voicemail picked up or nobody answered"
+          >
+            END CALL
+          </button>
+        )}
         <button className="dc-btn" onClick={reset} title="Stop incident, restore rule, return to HEALTHY">RESET</button>
         <button className="dc-btn" onClick={toggleMode}>{mode === "director" ? "WALK MODE" : "DIRECTOR MODE"}</button>
         <a className="dc-btn" href="/">CLASSIC UI</a>

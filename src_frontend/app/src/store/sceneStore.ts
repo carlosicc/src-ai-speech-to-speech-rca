@@ -14,6 +14,7 @@ interface SceneStore {
   triggerIncident: (service: string) => void;
   advancePhase: () => void;
   reset: () => void;
+  endCall: () => void;
   setAutoAdvance: (enabled: boolean) => void;
   setPhase: (phase: SceneState, service?: string | null) => void;
   setConnected: (connected: boolean) => void;
@@ -39,6 +40,12 @@ export const useSceneStore = create<SceneStore>((set, get) => ({
 
   reset: () => {
     send({ type: "reset_demo", payload: {} });
+  },
+
+  /** Abandon a call nobody useful answered — the backend hangs up and moves to RECOVERING. */
+  endCall: () => {
+    if (get().state !== "CALLING") return;
+    send({ type: "end_call", payload: {} });
   },
 
   setAutoAdvance: (enabled: boolean) => {

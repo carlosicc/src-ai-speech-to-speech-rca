@@ -85,6 +85,7 @@
 .dc-btn:hover:not(:disabled) { border-color: #64748b; }
 .dc-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .dc-btn--danger { border-color: #7f1d1d; color: #fca5a5; }
+.dc-btn--warn { border-color: #92400e; color: #fcd34d; }
 .dc-btn--holding { background: #7f1d1d; color: #fff; }
 
 /* Error toast */

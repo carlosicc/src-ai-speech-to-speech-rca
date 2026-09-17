@@ -215,6 +215,7 @@ cd src_frontend/app && npm install && npm run dev
 ```
 
 - **3D data-center view:** open `/datacenter`. `V` toggles walk mode, `G` jumps to the service link, hold `E` (or the HUD button) to disconnect it. The classic view stays at `/`.
+- **If a call goes to voicemail:** press **END CALL** in the 3D HUD (it appears only during `CALLING`). The backend hangs up and skips to recovery instead of waiting for the far end. Left alone, a call is cut off after 120s.
 
 ---
 

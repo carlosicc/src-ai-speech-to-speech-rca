@@ -245,6 +245,9 @@ async def handle_client_message(data: str) -> None:
         from voice.voice_router import voice_router
         await voice_router.stop_session()
 
+    elif msg_type == "end_call":
+        await _end_call_early()
+
     else:
         logger.warning(f"Unknown message type: {msg_type}")
 
@@ -280,6 +283,34 @@ async def _start_voice_session() -> None:
         on_transcript=on_transcript,
         on_session_end=on_session_end,
     )
+
+
+async def _end_call_early() -> None:
+    """Abandon a call that is going nowhere and get the demo moving again.
+
+    Voicemail answers the phone, so the Twilio media stream stays open and the idle
+    timer in the CALLING loop never fires — the demo sits there until the far end hangs
+    up. This hangs up now and moves the story on to RECOVERING; the end-of-run safety
+    net puts the TCP/3306 rule back.
+
+    The phase is set before the session is stopped so the session-end callback, which
+    advances the phase when it still reads CALLING, does not skip ahead to RESOLVED.
+    """
+    if demo_state.phase != Phase.CALLING:
+        logger.info(f"end_call ignored: phase is {demo_state.phase.value}")
+        return
+
+    from voice.voice_router import voice_router
+
+    demo_state.phase = Phase.RECOVERING
+    await _cancel_inflight_twilio_call()
+    await voice_router.stop_session()
+    logger.info("Call ended by presenter — advancing to RECOVERING")
+    await broadcast_phase_change(demo_state)
+    await manager.broadcast({
+        "type": "agent_log",
+        "payload": {"message": "Call ended by presenter — proceeding with recovery.", "level": "warn"},
+    })
 
 
 async def _cancel_inflight_twilio_call() -> None:
